@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "BloodLink",
+    "slug": "bloodlink",
+    "scheme": "bloodlink",
+    "platforms": ["ios", "android"],
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true }
+  }
+}
