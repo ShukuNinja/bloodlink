@@ -10,6 +10,7 @@ import { RequestContext } from './http/request-context';
 import { AuthModule } from './auth/auth.module';
 import { PatientNeedsModule } from './patient-needs/patient-needs.module';
 import { HospitalsModule } from './hospitals/hospitals.module';
+import { BloodRequestsModule } from './blood-requests/blood-requests.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { HospitalsModule } from './hospitals/hospitals.module';
     AuthModule,
     PatientNeedsModule,
     HospitalsModule,
+    BloodRequestsModule,
   ],
   controllers: [HealthController],
   providers: [

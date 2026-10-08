@@ -73,6 +73,24 @@ enum PatientNeedStatus {
   CANCELLED
 }
 
+enum BloodRequestStatus {
+  OPEN
+  RESPONSES_RECEIVED
+  COVERED
+  COORDINATING
+  BACKUP_REQUIRED
+  FULFILLMENT_PENDING
+  FULFILLMENT_CONFIRMED
+  FULFILLED
+  CANCELLED
+}
+
+enum ResponderAssignmentState {
+  SELECTED
+  STANDBY
+  RELEASED
+}
+
 model User {
   id            String                   @id @default(uuid()) @db.Uuid
   email         String                   @unique @db.VarChar(320)
@@ -87,16 +105,17 @@ model User {
 }
 
 model Organization {
-  id           String                   @id @default(uuid()) @db.Uuid
-  name         String                   @db.VarChar(255)
-  type         OrganizationType
-  status       OrganizationStatus       @default(ACTIVE)
-  createdAt    DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime                 @updatedAt @db.Timestamptz(6)
-  memberships  OrganizationMembership[]
-  patientNeeds PatientNeed[]
-  latitude     Decimal?                 @db.Decimal(9, 6)
-  longitude    Decimal?                 @db.Decimal(9, 6)
+  id            String                   @id @default(uuid()) @db.Uuid
+  name          String                   @db.VarChar(255)
+  type          OrganizationType
+  status        OrganizationStatus       @default(ACTIVE)
+  createdAt     DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime                 @updatedAt @db.Timestamptz(6)
+  memberships   OrganizationMembership[]
+  patientNeeds  PatientNeed[]
+  latitude      Decimal?                 @db.Decimal(9, 6)
+  longitude     Decimal?                 @db.Decimal(9, 6)
+  bloodRequests BloodRequest[]
 }
 
 model OrganizationMembership {
@@ -142,7 +161,46 @@ model PatientNeed {
   updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
   submittedBy       User                  @relation(fields: [submittedByUserId], references: [id], onDelete: Restrict)
   hospital          Organization          @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  bloodRequest      BloodRequest?
 
   @@index([submittedByUserId, createdAt])
   @@index([hospitalId, status])
+}
+
+model BloodRequest {
+  id            String                @id @default(uuid()) @db.Uuid
+  hospitalId    String                @db.Uuid
+  patientNeedId String                @unique @db.Uuid
+  bloodGroup    PatientNeedBloodGroup
+  component     PatientNeedComponent
+  unitsRequired Int
+  urgency       PatientNeedUrgency
+  requiredBy    DateTime              @db.Timestamptz(6)
+  status        BloodRequestStatus    @default(OPEN)
+  createdAt     DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime              @updatedAt @db.Timestamptz(6)
+  hospital      Organization          @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  patientNeed   PatientNeed           @relation(fields: [patientNeedId], references: [id], onDelete: Restrict)
+  assignments   ResponderAssignment[]
+
+  @@index([hospitalId, createdAt])
+  @@index([hospitalId, status])
+}
+
+model ResponderAssignment {
+  id                     String                   @id @default(uuid()) @db.Uuid
+  bloodRequestId         String                   @db.Uuid
+  // Deferred D4 references; foreign keys are added when D4 response models integrate.
+  donorResponseId        String?                  @db.Uuid
+  organizationResponseId String?                  @db.Uuid
+  state                  ResponderAssignmentState
+  assignedAt             DateTime                 @default(now()) @db.Timestamptz(6)
+  releasedAt             DateTime?                @db.Timestamptz(6)
+  createdAt              DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime                 @updatedAt @db.Timestamptz(6)
+  bloodRequest           BloodRequest             @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade)
+
+  @@index([bloodRequestId, state])
+  @@index([donorResponseId])
+  @@index([organizationResponseId])
 }

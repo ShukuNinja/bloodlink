@@ -137,3 +137,103 @@ export type HospitalSummary = {
 };
 
 export type HospitalSearchResponse = ApiSuccess<HospitalSummary[]>;
+
+export type BloodRequestStatus =
+  | 'OPEN'
+  | 'RESPONSES_RECEIVED'
+  | 'COVERED'
+  | 'COORDINATING'
+  | 'BACKUP_REQUIRED'
+  | 'FULFILLMENT_PENDING'
+  | 'FULFILLMENT_CONFIRMED'
+  | 'FULFILLED'
+  | 'CANCELLED';
+
+export type ResponderAssignmentState = 'SELECTED' | 'STANDBY' | 'RELEASED';
+
+export type HospitalPatientNeedQuery = {
+  status?: PatientNeedStatus;
+  page?: number;
+  pageSize?: number;
+};
+
+export type HospitalPatientNeedListResponse = ApiSuccessWithMeta<
+  PatientNeedRecord[],
+  PaginationMeta
+>;
+
+export type HospitalPatientNeedResponse = ApiSuccess<PatientNeedRecord>;
+
+export type VerifyPatientNeedResponse = ApiSuccess<{
+  patientNeed: PatientNeedRecord;
+  bloodRequest: BloodRequestRecord;
+}>;
+
+export type RejectPatientNeedResponse = ApiSuccess<PatientNeedRecord>;
+
+export type ResponderResponseType = 'DONOR_RESPONSE' | 'ORGANIZATION_RESPONSE';
+
+export type ResponderResponseReference = {
+  responseId: ResourceId;
+  responseType: ResponderResponseType;
+};
+
+export type ResponderAssignmentView = {
+  id: ResourceId;
+  bloodRequestId: ResourceId;
+  response: ResponderResponseReference;
+  state: ResponderAssignmentState;
+  assignedAt: ApiTimestamp;
+  releasedAt?: ApiTimestamp;
+};
+
+export type ResponderCoordinationResponse = ApiSuccess<
+  ResponderAssignmentView[]
+>;
+export type ResponderAssignmentResponse = ApiSuccess<ResponderAssignmentView>;
+
+export type ResponderResponseListResponse = ApiSuccess<
+  ResponderResponseReference[]
+>;
+
+export type AssignResponderRequest = {
+  responseType: ResponderResponseType;
+};
+
+export type BloodRequestRecord = {
+  id: ResourceId;
+  hospitalId: ResourceId;
+  patientNeedId: ResourceId;
+  bloodGroup: PatientNeedBloodGroup;
+  component: PatientNeedComponent;
+  unitsRequired: number;
+  urgency: PatientNeedUrgency;
+  requiredBy: ApiTimestamp;
+  status: BloodRequestStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+};
+
+export type BloodRequest = BloodRequestRecord;
+export type BloodRequestSummary = BloodRequestRecord;
+
+export type BloodRequestDetail = BloodRequestRecord & {
+  assignments: ResponderAssignmentView[];
+};
+
+export type BloodRequestListQuery = {
+  status?: BloodRequestStatus;
+  page?: number;
+  pageSize?: number;
+};
+
+export type BloodRequestListResponse = ApiSuccessWithMeta<
+  BloodRequestSummary[],
+  PaginationMeta
+>;
+
+export type BloodRequestDetailResponse = ApiSuccess<BloodRequestDetail>;
+export type BloodRequestActionResponse = ApiSuccess<BloodRequestRecord>;
+
+export type BloodRequestCancellationResponse = BloodRequestActionResponse;
+export type FulfillmentActionResponse = BloodRequestActionResponse;
