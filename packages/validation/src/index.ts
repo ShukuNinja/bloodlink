@@ -2,6 +2,8 @@ import { z } from 'zod';
 import type {
   LoginInput,
   LogoutInput,
+  CreatePatientNeedRequest,
+  HospitalSearchRequest,
   RefreshInput,
   RegisterInput,
 } from '@bloodlink/contracts';
@@ -33,3 +35,36 @@ export const refreshInputSchema: z.ZodType<RefreshInput> = z.strictObject({
 });
 
 export const logoutInputSchema: z.ZodType<LogoutInput> = refreshInputSchema;
+
+export const CreatePatientNeedSchema: z.ZodType<CreatePatientNeedRequest> =
+  z.strictObject({
+    hospitalId: z.string().min(1),
+    bloodGroup: z.enum([
+      'A_POSITIVE',
+      'A_NEGATIVE',
+      'B_POSITIVE',
+      'B_NEGATIVE',
+      'AB_POSITIVE',
+      'AB_NEGATIVE',
+      'O_POSITIVE',
+      'O_NEGATIVE',
+    ]),
+    component: z.enum([
+      'WHOLE_BLOOD',
+      'RED_BLOOD_CELLS',
+      'PLATELETS',
+      'PLASMA',
+    ]),
+    units: z.number().int().positive(),
+    urgency: z.enum(['ROUTINE', 'URGENT', 'CRITICAL']),
+    requiredBy: z.iso.datetime({ offset: true }),
+    additionalNotes: z.string().trim().min(1),
+  });
+
+export const hospitalSearchSchema: z.ZodType<HospitalSearchRequest> =
+  z.strictObject({
+    latitude: z.coerce.number().min(-90).max(90),
+    longitude: z.coerce.number().min(-180).max(180),
+    radiusMeters: z.coerce.number().finite().positive().optional(),
+    query: z.string().trim().min(1).optional(),
+  });
