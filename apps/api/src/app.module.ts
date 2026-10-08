@@ -8,6 +8,8 @@ import { ApiResponseInterceptor } from './http/api-response.interceptor';
 import { ApiRequestIdMiddleware } from './http/request-id.middleware';
 import { RequestContext } from './http/request-context';
 import { AuthModule } from './auth/auth.module';
+import { PatientNeedsModule } from './patient-needs/patient-needs.module';
+import { HospitalsModule } from './hospitals/hospitals.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { AuthModule } from './auth/auth.module';
     }),
     PrismaModule,
     AuthModule,
+    PatientNeedsModule,
+    HospitalsModule,
   ],
   controllers: [HealthController],
   providers: [

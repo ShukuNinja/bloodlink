@@ -73,3 +73,67 @@ export type RefreshInput = {
 };
 
 export type LogoutInput = RefreshInput;
+
+export type PatientNeedBloodGroup =
+  | 'A_POSITIVE'
+  | 'A_NEGATIVE'
+  | 'B_POSITIVE'
+  | 'B_NEGATIVE'
+  | 'AB_POSITIVE'
+  | 'AB_NEGATIVE'
+  | 'O_POSITIVE'
+  | 'O_NEGATIVE';
+
+export type PatientNeedComponent =
+  'WHOLE_BLOOD' | 'RED_BLOOD_CELLS' | 'PLATELETS' | 'PLASMA';
+
+export type PatientNeedUrgency = 'ROUTINE' | 'URGENT' | 'CRITICAL';
+
+export type PatientNeedStatus =
+  'PENDING_HOSPITAL_REVIEW' | 'VERIFIED' | 'REJECTED' | 'CANCELLED';
+
+export type CreatePatientNeedRequest = {
+  hospitalId: ResourceId;
+  bloodGroup: PatientNeedBloodGroup;
+  component: PatientNeedComponent;
+  units: number;
+  urgency: PatientNeedUrgency;
+  requiredBy: ApiTimestamp;
+  additionalNotes: string;
+};
+
+export type PatientNeedRecord = {
+  id: ResourceId;
+  hospitalId: ResourceId;
+  bloodGroup: PatientNeedBloodGroup;
+  component: PatientNeedComponent;
+  units: number;
+  urgency: PatientNeedUrgency;
+  requiredBy: ApiTimestamp;
+  additionalNotes: string;
+  status: PatientNeedStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+};
+
+export type PatientNeedResponse = ApiSuccess<PatientNeedRecord>;
+export type PatientNeedListResponse = ApiSuccessWithMeta<
+  PatientNeedRecord[],
+  PaginationMeta
+>;
+
+export type HospitalSearchRequest = {
+  latitude: number;
+  longitude: number;
+  radiusMeters?: number;
+  query?: string;
+};
+
+export type HospitalSummary = {
+  id: ResourceId;
+  name: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type HospitalSearchResponse = ApiSuccess<HospitalSummary[]>;

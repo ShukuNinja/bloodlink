@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@bloodlink/contracts": "workspace:*",
+    "@bloodlink/validation": "workspace:*",
     "expo": "^57.0.0",
     "expo-router": "^57.0.25",
     "react": "19.2.3",
