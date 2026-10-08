@@ -7,6 +7,7 @@ import { ApiExceptionFilter } from './http/api-exception.filter';
 import { ApiResponseInterceptor } from './http/api-response.interceptor';
 import { ApiRequestIdMiddleware } from './http/request-id.middleware';
 import { RequestContext } from './http/request-context';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { RequestContext } from './http/request-context';
       },
     }),
     PrismaModule,
+    AuthModule,
   ],
   controllers: [HealthController],
   providers: [

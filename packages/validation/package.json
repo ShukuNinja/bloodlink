@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@bloodlink/contracts": "workspace:*",
     "zod": "^4.1.12"
   },
   "devDependencies": {

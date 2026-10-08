@@ -8,3 +8,86 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  INDIVIDUAL
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrganizationType {
+  HOSPITAL
+  BLOOD_CENTRE
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrganizationMembershipRole {
+  HOSPITAL_ADMIN
+  HOSPITAL_STAFF
+  BLOOD_CENTRE_ADMIN
+  BLOOD_CENTRE_STAFF
+}
+
+enum OrganizationMembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+model User {
+  id            String                   @id @default(uuid()) @db.Uuid
+  email         String                   @unique @db.VarChar(320)
+  passwordHash  String                   @db.VarChar(255)
+  role          UserRole                 @default(INDIVIDUAL)
+  status        UserStatus               @default(ACTIVE)
+  createdAt     DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime                 @updatedAt @db.Timestamptz(6)
+  memberships   OrganizationMembership[]
+  refreshTokens RefreshToken[]
+}
+
+model Organization {
+  id          String                   @id @default(uuid()) @db.Uuid
+  name        String                   @db.VarChar(255)
+  type        OrganizationType
+  status      OrganizationStatus       @default(ACTIVE)
+  createdAt   DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime                 @updatedAt @db.Timestamptz(6)
+  memberships OrganizationMembership[]
+}
+
+model OrganizationMembership {
+  id             String                       @id @default(uuid()) @db.Uuid
+  userId         String                       @db.Uuid
+  organizationId String                       @db.Uuid
+  role           OrganizationMembershipRole
+  status         OrganizationMembershipStatus @default(ACTIVE)
+  createdAt      DateTime                     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                     @updatedAt @db.Timestamptz(6)
+  user           User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+}

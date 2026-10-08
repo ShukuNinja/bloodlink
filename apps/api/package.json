@@ -19,6 +19,8 @@
   "dependencies": {
     "@bloodlink/contracts": "workspace:*",
     "@bloodlink/validation": "workspace:*",
+    "@nestjs/jwt": "^11.0.1",
+    "bcryptjs": "^3.0.2",
     "@nestjs/config": "^4.0.2",
     "@nestjs/common": "^11.1.9",
     "@nestjs/core": "^11.1.9",

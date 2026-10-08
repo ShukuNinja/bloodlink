@@ -24,6 +24,12 @@ process.env.NODE_ENV ??= 'test';
 process.env.PORT ??= '3001';
 process.env.DATABASE_URL ??=
   'postgresql://bloodlink_test:bloodlink_test@127.0.0.1:5432/bloodlink_test?schema=public';
+process.env.JWT_ACCESS_SECRET ??=
+  'test-access-secret-with-more-than-32-characters';
+process.env.JWT_ACCESS_EXPIRES_IN ??= '15m';
+process.env.JWT_REFRESH_SECRET ??=
+  'test-refresh-secret-that-is-also-over-32-characters';
+process.env.JWT_REFRESH_EXPIRES_IN ??= '7d';
 
 let app;
 let baseUrl;

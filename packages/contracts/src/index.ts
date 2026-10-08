@@ -35,3 +35,41 @@ export type PaginationMeta = {
 
 export type ApiTimestamp = string;
 export type ResourceId = string;
+
+export type UserStatus = 'ACTIVE' | 'SUSPENDED';
+export type PlatformRole = 'INDIVIDUAL' | 'ADMIN';
+export type OrganizationType = 'HOSPITAL' | 'BLOOD_CENTRE';
+export type OrganizationMembershipRole =
+  | 'HOSPITAL_ADMIN'
+  | 'HOSPITAL_STAFF'
+  | 'BLOOD_CENTRE_ADMIN'
+  | 'BLOOD_CENTRE_STAFF';
+
+export type AuthUser = {
+  id: ResourceId;
+  email: string;
+  status: UserStatus;
+};
+
+export type AuthTokens = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: 'Bearer';
+};
+
+export type AuthResponse = {
+  user: AuthUser;
+} & AuthTokens;
+
+export type RegisterInput = {
+  email: string;
+  password: string;
+};
+
+export type LoginInput = RegisterInput;
+
+export type RefreshInput = {
+  refreshToken: string;
+};
+
+export type LogoutInput = RefreshInput;
