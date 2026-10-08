@@ -3,21 +3,35 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "dev": "pnpm db:generate && ts-node-dev --respawn --transpile-only src/main.ts",
+    "build": "pnpm db:generate && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:format": "prisma format --config prisma.config.ts",
+    "db:generate": "prisma generate --config prisma.config.ts",
+    "db:validate": "prisma validate --config prisma.config.ts",
+    "db:migrate:dev": "prisma migrate dev --config prisma.config.ts",
+    "db:migrate:deploy": "prisma migrate deploy --config prisma.config.ts",
+    "db:migrate:status": "prisma migrate status --config prisma.config.ts"
   },
   "dependencies": {
+    "@nestjs/config": "^4.0.2",
     "@nestjs/common": "^11.1.9",
     "@nestjs/core": "^11.1.9",
     "@nestjs/platform-express": "^11.1.9",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "dotenv": "^17.2.3",
+    "joi": "^18.0.1",
+    "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
+    "@types/pg": "^8.15.5",
+    "prisma": "7.10.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }

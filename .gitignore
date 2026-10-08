@@ -38,6 +38,7 @@ Thumbs.db
 # Prisma
 prisma/*.db
 prisma/*.db-journal
+apps/api/src/database/generated/
 
 # TypeScript
 *.tsbuildinfo
