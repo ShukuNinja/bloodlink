@@ -6,7 +6,8 @@
     "dev": "pnpm db:generate && ts-node-dev --respawn --transpile-only src/main.ts",
     "build": "pnpm db:generate && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
-    "lint": "eslint src",
+    "lint": "eslint src test",
+    "test": "pnpm build && node --test test/*.spec.cjs",
     "typecheck": "tsc --noEmit",
     "db:format": "prisma format --config prisma.config.ts",
     "db:generate": "prisma generate --config prisma.config.ts",
@@ -16,6 +17,8 @@
     "db:migrate:status": "prisma migrate status --config prisma.config.ts"
   },
   "dependencies": {
+    "@bloodlink/contracts": "workspace:*",
+    "@bloodlink/validation": "workspace:*",
     "@nestjs/config": "^4.0.2",
     "@nestjs/common": "^11.1.9",
     "@nestjs/core": "^11.1.9",
@@ -29,6 +32,7 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@nestjs/testing": "^11.1.9",
     "@types/node": "^24.10.0",
     "@types/pg": "^8.15.5",
     "prisma": "7.10.0",
