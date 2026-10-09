@@ -9,6 +9,10 @@ import type {
   HospitalSearchRequest,
   RefreshInput,
   RegisterInput,
+  DonorProfileUpdate,
+  DonorBloodRequestQuery,
+  CreateMessageRequest,
+  CreatePushSubscriptionRequest,
 } from '@bloodlink/contracts';
 export { z, ZodError } from 'zod';
 export type { ZodIssue, ZodType } from 'zod';
@@ -121,3 +125,75 @@ export const standbyResponderSchema = responderAssignmentRequestSchema;
 export const releaseResponderSchema = responderAssignmentRequestSchema;
 export const fulfillmentStartSchema = optionalEmptyActionSchema;
 export const fulfillmentConfirmSchema = optionalEmptyActionSchema;
+
+const donorAvailabilitySchema = z.enum(['AVAILABLE', 'UNAVAILABLE']);
+const donorPreferenceSchema = z.enum([
+  'ALL',
+  'URGENT_ONLY',
+  'CRITICAL_ONLY',
+  'NONE',
+]);
+const donorCoordinationSchema = z.enum(['ACTIVE', 'PAUSED']);
+const coordinationResponseStatusSchema = z.enum([
+  'NOTIFIED',
+  'ACCEPTED',
+  'WITHDRAWN',
+  'EXPIRED',
+]);
+const hospitalSubscriptionStatusSchema = z.enum(['ACTIVE', 'PAUSED']);
+const conversationStatusSchema = z.enum(['OPEN', 'CLOSED']);
+const bloodRequestQueryStatusSchema = bloodRequestStatusSchema;
+
+export const donorProfileUpdateSchema: z.ZodType<DonorProfileUpdate> =
+  z.strictObject({
+    bloodGroup: z
+      .enum([
+        'A_POSITIVE',
+        'A_NEGATIVE',
+        'B_POSITIVE',
+        'B_NEGATIVE',
+        'AB_POSITIVE',
+        'AB_NEGATIVE',
+        'O_POSITIVE',
+        'O_NEGATIVE',
+      ])
+      .optional(),
+    availabilityStatus: donorAvailabilitySchema.optional(),
+    notificationPreference: donorPreferenceSchema.optional(),
+    location: z
+      .strictObject({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+      })
+      .optional(),
+  });
+
+export const donorBloodRequestQuerySchema: z.ZodType<DonorBloodRequestQuery> =
+  z.strictObject({
+    ...paginationQueryFields,
+    status: bloodRequestQueryStatusSchema.optional(),
+  });
+
+export const donorAcceptSchema = optionalEmptyActionSchema;
+export const donorWithdrawSchema = optionalEmptyActionSchema;
+export const organizationResponseSchema = optionalEmptyActionSchema;
+export const hospitalSubscriptionSchema = optionalEmptyActionSchema;
+
+export const createMessageSchema: z.ZodType<CreateMessageRequest> =
+  z.strictObject({ content: z.string().trim().min(1) });
+
+export const pushSubscriptionSchema: z.ZodType<CreatePushSubscriptionRequest> =
+  z.strictObject({
+    platform: z.enum(['MOBILE_ANDROID', 'MOBILE_IOS', 'WEB']),
+    endpoint: z.string().trim().min(1),
+  });
+
+// Exported enum schemas are for structural input validation only.
+export {
+  donorAvailabilitySchema,
+  donorPreferenceSchema,
+  donorCoordinationSchema,
+  coordinationResponseStatusSchema,
+  hospitalSubscriptionStatusSchema,
+  conversationStatusSchema,
+};
