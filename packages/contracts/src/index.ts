@@ -237,3 +237,145 @@ export type BloodRequestActionResponse = ApiSuccess<BloodRequestRecord>;
 
 export type BloodRequestCancellationResponse = BloodRequestActionResponse;
 export type FulfillmentActionResponse = BloodRequestActionResponse;
+
+export type DonorAvailabilityStatus = 'AVAILABLE' | 'UNAVAILABLE';
+export type DonorNotificationPreference =
+  'ALL' | 'URGENT_ONLY' | 'CRITICAL_ONLY' | 'NONE';
+export type DonorCoordinationStatus = 'ACTIVE' | 'PAUSED';
+export type CoordinationResponseStatus =
+  'NOTIFIED' | 'ACCEPTED' | 'WITHDRAWN' | 'EXPIRED';
+export type HospitalSubscriptionStatus = 'ACTIVE' | 'PAUSED';
+export type ConversationStatus = 'OPEN' | 'CLOSED';
+export type PushPlatform = 'MOBILE_ANDROID' | 'MOBILE_IOS' | 'WEB';
+export type CreatePushSubscriptionRequest = {
+  platform: PushPlatform;
+  endpoint: string;
+};
+export type PushSubscription = {
+  id: ResourceId;
+  platform: PushPlatform;
+  enabled: boolean;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+  lastUsedAt?: ApiTimestamp;
+};
+export type PushSubscriptionResponse = ApiSuccess<PushSubscription>;
+
+export type ApproximateDistance = { approximateDistanceKm: number };
+
+/** Public shape intentionally excludes precise donor coordinates. */
+export type DonorProfile = {
+  id: ResourceId;
+  bloodGroup: PatientNeedBloodGroup;
+  availabilityStatus: DonorAvailabilityStatus;
+  notificationPreference: DonorNotificationPreference;
+  coordinationStatus: DonorCoordinationStatus;
+  lastConfirmedDonationAt?: ApiTimestamp;
+  eligibleFrom?: ApiTimestamp;
+};
+
+export type DonorProfileUpdate = {
+  bloodGroup?: PatientNeedBloodGroup;
+  availabilityStatus?: DonorAvailabilityStatus;
+  notificationPreference?: DonorNotificationPreference;
+  location?: { latitude: number; longitude: number };
+};
+
+export type DonorProfileResponse = ApiSuccess<DonorProfile>;
+export type DonorProfileUpdateResponse = DonorProfileResponse;
+
+export type DonorBloodRequestSummary = Pick<
+  BloodRequestRecord,
+  | 'id'
+  | 'bloodGroup'
+  | 'component'
+  | 'unitsRequired'
+  | 'urgency'
+  | 'requiredBy'
+  | 'status'
+> & { hospitalName: string; approximateDistanceKm?: number };
+export type DonorBloodRequestDetail = DonorBloodRequestSummary;
+export type DonorBloodRequestQuery = {
+  page?: number;
+  pageSize?: number;
+  status?: BloodRequestStatus;
+};
+export type DonorBloodRequestListResponse = ApiSuccessWithMeta<
+  DonorBloodRequestSummary[],
+  PaginationMeta
+>;
+export type DonorBloodRequestDetailResponse =
+  ApiSuccess<DonorBloodRequestDetail>;
+
+export type DonorResponse = {
+  id: ResourceId;
+  bloodRequestId: ResourceId;
+  status: CoordinationResponseStatus;
+  respondedAt?: ApiTimestamp;
+  confirmedAt?: ApiTimestamp;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+};
+export type DonorResponseActionResponse = ApiSuccess<DonorResponse>;
+
+export type OrganizationResponse = {
+  id: ResourceId;
+  bloodRequestId: ResourceId;
+  organizationId: ResourceId;
+  status: CoordinationResponseStatus;
+  respondedAt?: ApiTimestamp;
+  confirmedAt?: ApiTimestamp;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+};
+export type OrganizationResponseActionResponse =
+  ApiSuccess<OrganizationResponse>;
+
+export type HospitalSubscription = {
+  id: ResourceId;
+  hospitalId: ResourceId;
+  status: HospitalSubscriptionStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+};
+export type HospitalSubscriptionListResponse = ApiSuccess<
+  HospitalSubscription[]
+>;
+export type HospitalSubscriptionResponse = ApiSuccess<HospitalSubscription>;
+
+/** Internal matching boundary; donor location is never part of this shape. */
+export type MatchingCandidateBoundary = {
+  donorId: ResourceId;
+  approximateDistanceKm: number;
+};
+export type MatchingTier =
+  'NEAREST_DONORS' | 'HOSPITAL_SUBSCRIBERS' | 'EXPANDING_RADIUS';
+export type MatchingResultBoundary = {
+  bloodRequestId: ResourceId;
+  tier: MatchingTier;
+  candidates: MatchingCandidateBoundary[];
+};
+export type NotificationBoundary = {
+  userId: ResourceId;
+  title: string;
+  body: string;
+};
+
+export type Conversation = {
+  id: ResourceId;
+  bloodRequestId: ResourceId;
+  status: ConversationStatus;
+  createdAt: ApiTimestamp;
+};
+export type Message = {
+  id: ResourceId;
+  conversationId: ResourceId;
+  senderId: ResourceId;
+  content: string;
+  createdAt: ApiTimestamp;
+  readAt?: ApiTimestamp;
+};
+export type ConversationDetail = Conversation & { messages: Message[] };
+export type ConversationResponse = ApiSuccess<ConversationDetail>;
+export type MessageResponse = ApiSuccess<Message>;
+export type CreateMessageRequest = { content: string };

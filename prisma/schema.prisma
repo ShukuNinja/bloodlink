@@ -91,31 +91,77 @@ enum ResponderAssignmentState {
   RELEASED
 }
 
+enum DonorAvailabilityStatus {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum DonorNotificationPreference {
+  ALL
+  URGENT_ONLY
+  CRITICAL_ONLY
+  NONE
+}
+
+enum DonorCoordinationStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum CoordinationResponseStatus {
+  NOTIFIED
+  ACCEPTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum HospitalSubscriptionStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+
+enum PushPlatform {
+  MOBILE_ANDROID
+  MOBILE_IOS
+  WEB
+}
+
 model User {
-  id            String                   @id @default(uuid()) @db.Uuid
-  email         String                   @unique @db.VarChar(320)
-  passwordHash  String                   @db.VarChar(255)
-  role          UserRole                 @default(INDIVIDUAL)
-  status        UserStatus               @default(ACTIVE)
-  createdAt     DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime                 @updatedAt @db.Timestamptz(6)
-  memberships   OrganizationMembership[]
-  refreshTokens RefreshToken[]
-  patientNeeds  PatientNeed[]
+  id                 String                   @id @default(uuid()) @db.Uuid
+  email              String                   @unique @db.VarChar(320)
+  passwordHash       String                   @db.VarChar(255)
+  role               UserRole                 @default(INDIVIDUAL)
+  status             UserStatus               @default(ACTIVE)
+  createdAt          DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                 @updatedAt @db.Timestamptz(6)
+  memberships        OrganizationMembership[]
+  refreshTokens      RefreshToken[]
+  patientNeeds       PatientNeed[]
+  donorProfile       DonorProfile?
+  pushSubscriptions  PushSubscription[]
+  sentMessages       Message[]
+  confirmedDonations DonationRecord[]
 }
 
 model Organization {
-  id            String                   @id @default(uuid()) @db.Uuid
-  name          String                   @db.VarChar(255)
+  id            String                                @id @default(uuid()) @db.Uuid
+  name          String                                @db.VarChar(255)
   type          OrganizationType
-  status        OrganizationStatus       @default(ACTIVE)
-  createdAt     DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime                 @updatedAt @db.Timestamptz(6)
+  status        OrganizationStatus                    @default(ACTIVE)
+  createdAt     DateTime                              @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime                              @updatedAt @db.Timestamptz(6)
   memberships   OrganizationMembership[]
   patientNeeds  PatientNeed[]
-  latitude      Decimal?                 @db.Decimal(9, 6)
-  longitude     Decimal?                 @db.Decimal(9, 6)
+  location      Unsupported("geography(Point,4326)")?
   bloodRequests BloodRequest[]
+  responses     OrganizationResponse[]
+  subscriptions HospitalSubscription[]
+  conversations Conversation[]
 }
 
 model OrganizationMembership {
@@ -168,23 +214,155 @@ model PatientNeed {
 }
 
 model BloodRequest {
-  id            String                @id @default(uuid()) @db.Uuid
-  hospitalId    String                @db.Uuid
-  patientNeedId String                @unique @db.Uuid
-  bloodGroup    PatientNeedBloodGroup
-  component     PatientNeedComponent
-  unitsRequired Int
-  urgency       PatientNeedUrgency
-  requiredBy    DateTime              @db.Timestamptz(6)
-  status        BloodRequestStatus    @default(OPEN)
-  createdAt     DateTime              @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime              @updatedAt @db.Timestamptz(6)
-  hospital      Organization          @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
-  patientNeed   PatientNeed           @relation(fields: [patientNeedId], references: [id], onDelete: Restrict)
-  assignments   ResponderAssignment[]
+  id                    String                 @id @default(uuid()) @db.Uuid
+  hospitalId            String                 @db.Uuid
+  patientNeedId         String                 @unique @db.Uuid
+  bloodGroup            PatientNeedBloodGroup
+  component             PatientNeedComponent
+  unitsRequired         Int
+  urgency               PatientNeedUrgency
+  requiredBy            DateTime               @db.Timestamptz(6)
+  status                BloodRequestStatus     @default(OPEN)
+  createdAt             DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime               @updatedAt @db.Timestamptz(6)
+  hospital              Organization           @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  patientNeed           PatientNeed            @relation(fields: [patientNeedId], references: [id], onDelete: Restrict)
+  assignments           ResponderAssignment[]
+  donorResponses        DonorResponse[]
+  organizationResponses OrganizationResponse[]
+  conversations         Conversation[]
+  donationRecords       DonationRecord[]
 
   @@index([hospitalId, createdAt])
   @@index([hospitalId, status])
+}
+
+model DonorProfile {
+  id                      String                                @id @default(uuid()) @db.Uuid
+  userId                  String                                @unique @db.Uuid
+  bloodGroup              PatientNeedBloodGroup
+  availabilityStatus      DonorAvailabilityStatus
+  notificationPreference  DonorNotificationPreference
+  location                Unsupported("geography(Point,4326)")?
+  lastConfirmedDonationAt DateTime?                             @db.Timestamptz(6)
+  eligibleFrom            DateTime?                             @db.Timestamptz(6)
+  coordinationStatus      DonorCoordinationStatus
+  createdAt               DateTime                              @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime                              @updatedAt @db.Timestamptz(6)
+  user                    User                                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responses               DonorResponse[]
+  subscriptions           HospitalSubscription[]
+  conversations           Conversation[]
+  donationRecords         DonationRecord[]
+
+  @@index([availabilityStatus, coordinationStatus])
+}
+
+model DonorResponse {
+  id             String                     @id @default(uuid()) @db.Uuid
+  bloodRequestId String                     @db.Uuid
+  donorId        String                     @db.Uuid
+  status         CoordinationResponseStatus
+  respondedAt    DateTime?                  @db.Timestamptz(6)
+  confirmedAt    DateTime?                  @db.Timestamptz(6)
+  createdAt      DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                   @updatedAt @db.Timestamptz(6)
+  bloodRequest   BloodRequest               @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade)
+  donor          DonorProfile               @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  assignments    ResponderAssignment[]
+
+  @@unique([bloodRequestId, donorId])
+  @@index([donorId, status])
+}
+
+model OrganizationResponse {
+  id             String                     @id @default(uuid()) @db.Uuid
+  bloodRequestId String                     @db.Uuid
+  organizationId String                     @db.Uuid
+  status         CoordinationResponseStatus
+  respondedAt    DateTime?                  @db.Timestamptz(6)
+  confirmedAt    DateTime?                  @db.Timestamptz(6)
+  createdAt      DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                   @updatedAt @db.Timestamptz(6)
+  bloodRequest   BloodRequest               @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade)
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  assignments    ResponderAssignment[]
+
+  @@unique([bloodRequestId, organizationId])
+  @@index([organizationId, status])
+}
+
+model HospitalSubscription {
+  id         String                     @id @default(uuid()) @db.Uuid
+  hospitalId String                     @db.Uuid
+  donorId    String                     @db.Uuid
+  status     HospitalSubscriptionStatus
+  createdAt  DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime                   @updatedAt @db.Timestamptz(6)
+  hospital   Organization               @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  donor      DonorProfile               @relation(fields: [donorId], references: [id], onDelete: Cascade)
+
+  @@unique([hospitalId, donorId])
+  @@index([donorId, status])
+}
+
+model PushSubscription {
+  id         String       @id @default(uuid()) @db.Uuid
+  userId     String       @db.Uuid
+  platform   PushPlatform
+  endpoint   String       @unique @db.Text
+  enabled    Boolean      @default(true)
+  createdAt  DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime     @updatedAt @db.Timestamptz(6)
+  lastUsedAt DateTime?    @db.Timestamptz(6)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+}
+
+model Conversation {
+  id             String             @id @default(uuid()) @db.Uuid
+  bloodRequestId String             @db.Uuid
+  donorId        String?            @db.Uuid
+  organizationId String?            @db.Uuid
+  status         ConversationStatus
+  createdAt      DateTime           @default(now()) @db.Timestamptz(6)
+  bloodRequest   BloodRequest       @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade)
+  donor          DonorProfile?      @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  organization   Organization?      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  messages       Message[]
+
+  @@unique([bloodRequestId, donorId])
+  @@unique([bloodRequestId, organizationId])
+  @@index([bloodRequestId, status])
+}
+
+model Message {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @db.Uuid
+  senderId       String       @db.Uuid
+  content        String       @db.Text
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  readAt         DateTime?    @db.Timestamptz(6)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+}
+
+model DonationRecord {
+  id                String       @id @default(uuid()) @db.Uuid
+  donorId           String       @db.Uuid
+  bloodRequestId    String       @db.Uuid
+  confirmedAt       DateTime     @db.Timestamptz(6)
+  confirmedByUserId String       @db.Uuid
+  createdAt         DateTime     @default(now()) @db.Timestamptz(6)
+  donor             DonorProfile @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  bloodRequest      BloodRequest @relation(fields: [bloodRequestId], references: [id], onDelete: Restrict)
+  confirmedBy       User         @relation(fields: [confirmedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([donorId, confirmedAt])
+  @@index([bloodRequestId])
 }
 
 model ResponderAssignment {
@@ -199,6 +377,8 @@ model ResponderAssignment {
   createdAt              DateTime                 @default(now()) @db.Timestamptz(6)
   updatedAt              DateTime                 @updatedAt @db.Timestamptz(6)
   bloodRequest           BloodRequest             @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade)
+  donorResponse          DonorResponse?           @relation(fields: [donorResponseId], references: [id], onDelete: Restrict)
+  organizationResponse   OrganizationResponse?    @relation(fields: [organizationResponseId], references: [id], onDelete: Restrict)
 
   @@index([bloodRequestId, state])
   @@index([donorResponseId])
