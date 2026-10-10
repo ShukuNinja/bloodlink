@@ -1,69 +1,92 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import type { DonorProfileUpdate } from '@bloodlink/contracts';
+import { DonorProfileService } from '../donor-profile/donor-profile.service';
+import { ResponsesService } from '../responses/responses.service';
+import { MatchingService } from '../matching/matching.service';
+import { CommunicationService } from '../communication/communication.service';
+import { HospitalSubscriptionsService } from '../hospital-subscriptions/hospital-subscriptions.service';
 
 /**
  * OWNER: D4
- * PURPOSE: Explicit TODO boundary for D4 API operations.
- * ENDPOINT/METHOD: Donor, blood-centre, subscription, and communication routes.
- * INPUT: Authenticated principal and structurally validated request data.
- * OUTPUT: TODO(D4); no domain objects are fabricated.
- * AUTHORIZATION: Enforced by route guards and future participant-scoped queries.
- * DEPENDENCIES: Existing AuthModule, shared contracts, shared validation.
- * STATE CHANGES: None until each operation is implemented by D4.
- * NON-RESPONSIBILITIES: D3 BloodRequest or ResponderAssignment mutations, medical decisions.
- * IMPLEMENTATION: TODO(D4).
+ * PURPOSE: Facade binding the D4 controller to the D4 sub-domain services.
+ * All business rules live in the sub-domain services; this class only
+ * routes calls so the controller stays thin.
+ * NON-RESPONSIBILITIES: D3 BloodRequest/ResponderAssignment mutation and
+ * medical decisions (enforced in the services as well).
  */
 @Injectable()
 export class D4ScaffoldService {
-  private pending(operation: string, ...context: unknown[]): never {
-    void context;
-    throw new NotImplementedException(`TODO(D4): ${operation}`);
+  constructor(
+    private readonly profiles: DonorProfileService,
+    private readonly responses: ResponsesService,
+    private readonly matching: MatchingService,
+    private readonly communication: CommunicationService,
+    private readonly subscriptions: HospitalSubscriptionsService,
+  ) {}
+
+  getDonorProfile(userId: string) {
+    return this.profiles.getOwnProfile(userId);
   }
 
-  getDonorProfile(_userId: string): never {
-    return this.pending('get donor profile', _userId);
+  updateDonorProfile(userId: string, input: DonorProfileUpdate) {
+    return this.profiles.updateOwnProfile(userId, input);
   }
-  updateDonorProfile(_userId: string, _input: unknown): never {
-    return this.pending('update donor profile', _userId, _input);
-  }
-  listDonorRequests(_userId: string, _query: unknown): never {
-    return this.pending('list donor requests', _userId, _query);
-  }
-  getDonorRequest(_userId: string, _requestId: string): never {
-    return this.pending('get donor request', _userId, _requestId);
-  }
-  acceptRequest(_userId: string, _requestId: string): never {
-    return this.pending('accept donor request', _userId, _requestId);
-  }
-  withdrawRequest(_userId: string, _requestId: string): never {
-    return this.pending('withdraw donor response', _userId, _requestId);
-  }
-  listBloodCentreRequests(_userId: string, _query: unknown): never {
-    return this.pending('list blood-centre requests', _userId, _query);
-  }
-  getBloodCentreRequest(_userId: string, _requestId: string): never {
-    return this.pending('get blood-centre request', _userId, _requestId);
-  }
-  createOrganizationResponse(_userId: string, _requestId: string): never {
-    return this.pending('create organization response', _userId, _requestId);
-  }
-  subscribe(_userId: string, _hospitalId: string): never {
-    return this.pending('subscribe to hospital', _userId, _hospitalId);
-  }
-  unsubscribe(_userId: string, _hospitalId: string): never {
-    return this.pending('unsubscribe from hospital', _userId, _hospitalId);
-  }
-  listSubscriptions(_userId: string): never {
-    return this.pending('list hospital subscriptions', _userId);
-  }
-  getConversation(_userId: string, _requestId: string): never {
-    return this.pending('get request conversation', _userId, _requestId);
-  }
-  createMessage(_userId: string, _requestId: string, _input: unknown): never {
-    return this.pending(
-      'create conversation message',
-      _userId,
-      _requestId,
-      _input,
+
+  listDonorRequests(userId: string, query: unknown) {
+    return this.matching.listDonorRequests(
+      userId,
+      query as Parameters<MatchingService['listDonorRequests']>[1],
     );
+  }
+
+  getDonorRequest(userId: string, requestId: string) {
+    return this.matching.getDonorRequest(userId, requestId);
+  }
+
+  acceptRequest(userId: string, requestId: string) {
+    return this.responses.acceptDonor(userId, requestId);
+  }
+
+  withdrawRequest(userId: string, requestId: string) {
+    return this.responses.withdrawDonor(userId, requestId);
+  }
+
+  listBloodCentreRequests(userId: string, query: unknown) {
+    return this.matching.listBloodCentreRequests(
+      userId,
+      query as Parameters<MatchingService['listBloodCentreRequests']>[1],
+    );
+  }
+
+  getBloodCentreRequest(userId: string, requestId: string) {
+    return this.matching.getBloodCentreRequest(userId, requestId);
+  }
+
+  createOrganizationResponse(userId: string, requestId: string) {
+    return this.responses.createOrganizationResponse(userId, requestId);
+  }
+
+  withdrawOrganizationResponse(userId: string, requestId: string) {
+    return this.responses.withdrawOrganizationResponse(userId, requestId);
+  }
+
+  subscribe(userId: string, hospitalId: string) {
+    return this.subscriptions.subscribe(userId, hospitalId);
+  }
+
+  unsubscribe(userId: string, hospitalId: string) {
+    return this.subscriptions.unsubscribe(userId, hospitalId);
+  }
+
+  listSubscriptions(userId: string) {
+    return this.subscriptions.listSubscriptions(userId);
+  }
+
+  getConversation(userId: string, requestId: string) {
+    return this.communication.getConversation(userId, requestId);
+  }
+
+  createMessage(userId: string, requestId: string, input: { content: string }) {
+    return this.communication.createMessage(userId, requestId, input);
   }
 }
