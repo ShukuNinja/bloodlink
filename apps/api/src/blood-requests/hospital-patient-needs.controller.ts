@@ -1,4 +1,14 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import type { HospitalPatientNeedQuery } from '@bloodlink/contracts';
 import { hospitalPatientNeedQuerySchema } from '@bloodlink/validation';
 import type { AuthenticatedPrincipal } from '../auth/auth.types';
@@ -37,17 +47,28 @@ export class HospitalPatientNeedsController {
   }
 
   @Get(':id')
-  getOne(@CurrentUser() user: AuthenticatedPrincipal, @Param('id') id: string) {
+  getOne(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     return this.service.findOneForUser(user.id, id);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/verify')
-  verify(@CurrentUser() user: AuthenticatedPrincipal, @Param('id') id: string) {
+  verify(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     return this.service.verifyForUser(user.id, id);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/reject')
-  reject(@CurrentUser() user: AuthenticatedPrincipal, @Param('id') id: string) {
+  reject(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     return this.service.rejectForUser(user.id, id);
   }
 }

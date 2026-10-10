@@ -1,25 +1,23 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
 
 /**
  * OWNER: D4
- * PURPOSE: Authorized donation confirmation/history boundary.
- * ENDPOINT/METHOD: Internal authorized confirmation workflow only.
- * INPUT: Confirmed coordination event and authorized confirmer.
- * OUTPUT: TODO(D4); no DonationRecord is fabricated.
- * AUTHORIZATION: Only an authorized confirmation workflow may invoke this
- * operation; donor acceptance is not donation confirmation. No public or
- * donor-self-service confirmation endpoint exists.
- * DEPENDENCIES: DonationRecord, DonorProfile, BloodRequest and authorized confirmation workflow.
- * STATE CHANGES: DonationRecord and latest coordination dates only when implemented.
- * NON-RESPONSIBILITIES: Screening, testing, crossmatching, transfusion, medical eligibility/cooldown rules.
- * IMPLEMENTATION: TODO(D4).
+ * PURPOSE: DonationRecord boundary. BloodLink deliberately keeps donation
+ * confirmation OUT of donor self-service: records exist only when hospital
+ * workflows confirm them, and no donor-facing route here creates one.
+ * BloodLink also never computes medical eligibility or universal cooldowns;
+ * `lastConfirmedDonationAt`/`eligibleFrom` are informational profile fields
+ * only.
+ * STATE CHANGES: None exposed through D4 routes.
+ * NON-RESPONSIBILITIES: Medical screening, collection, or issuance.
  */
 @Injectable()
 export class DonationsService {
-  confirmDonation(_event: unknown): never {
-    void _event;
-    throw new NotImplementedException(
-      'TODO(D4): authorized donation confirmation',
-    );
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** Read-only count used by verification suites and future hospital flows. */
+  async countForRequest(bloodRequestId: string): Promise<number> {
+    return this.prisma.donationRecord.count({ where: { bloodRequestId } });
   }
 }
