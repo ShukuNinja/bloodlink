@@ -1,4 +1,11 @@
 {
+  "ts-node": {
+    "transpileOnly": true,
+    "moduleTypes": {
+      "../../packages/contracts/**": "cjs",
+      "../../packages/validation/**": "cjs"
+    }
+  },
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,
