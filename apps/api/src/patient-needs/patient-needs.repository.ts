@@ -105,41 +105,47 @@ export class PatientNeedRepository {
     userId: string,
     patientNeedId: string,
   ): Promise<PatientNeedRow> {
-    return this.prisma.$transaction(async (transaction) => {
-      const existing = await transaction.patientNeed.findFirst({
-        where: { id: patientNeedId, submittedByUserId: userId },
-        select: { id: true, status: true },
-      });
+    // Atomically allow only one request to transition PENDING -> CANCELLED.
+    const updated = await this.prisma.patientNeed.updateMany({
+      where: {
+        id: patientNeedId,
+        submittedByUserId: userId,
+        status: PENDING_STATUS,
+      },
+      data: {
+        status: CANCELLED_STATUS,
+      },
+    });
 
-      if (!existing) {
-        throw new NotFoundException('PatientNeed not found');
-      }
-      if (existing.status === CANCELLED_STATUS) {
-        throw new ConflictException('PatientNeed is already cancelled');
-      }
-      if (existing.status !== PENDING_STATUS) {
-        throw new ConflictException(
-          'PatientNeed can only be cancelled while pending hospital review',
-        );
-      }
-
-      const updated = await transaction.patientNeed.updateMany({
-        where: {
-          id: patientNeedId,
-          submittedByUserId: userId,
-          status: PENDING_STATUS,
-        },
-        data: { status: CANCELLED_STATUS },
-      });
-      if (updated.count !== 1) {
-        throw new ConflictException(
-          'PatientNeed cancellation conflict; reload the record and retry',
-        );
-      }
-
-      return transaction.patientNeed.findUniqueOrThrow({
+    if (updated.count === 1) {
+      return this.prisma.patientNeed.findUniqueOrThrow({
         where: { id: patientNeedId },
       });
+    }
+
+    // The conditional update did not match. Determine whether the record
+    // is missing, belongs to another user, or is no longer cancellable.
+    const existing = await this.prisma.patientNeed.findFirst({
+      where: {
+        id: patientNeedId,
+        submittedByUserId: userId,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
     });
+
+    if (!existing) {
+      throw new NotFoundException('PatientNeed not found');
+    }
+
+    if (existing.status === CANCELLED_STATUS) {
+      throw new ConflictException('PatientNeed is already cancelled');
+    }
+
+    throw new ConflictException(
+      'PatientNeed can only be cancelled while pending hospital review',
+    );
   }
 }
