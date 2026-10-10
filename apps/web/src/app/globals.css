@@ -1,0 +1,204 @@
+/*
+ * BloodLink minimal application styles.
+ * packages/ui does not ship design-system primitives yet, so D2 screens use
+ * these neutral structural styles only and must adopt the shared design
+ * system as soon as it lands.
+ */
+:root {
+  color-scheme: light;
+  --bloodlink-ink: #16181d;
+  --bloodlink-muted: #5c6470;
+  --bloodlink-line: #d8dce3;
+  --bloodlink-surface: #f6f7f9;
+  --bloodlink-accent: #b3261e;
+  --bloodlink-accent-strong: #8f1d17;
+  --bloodlink-ok: #1c6b3c;
+  --bloodlink-warn: #9a6700;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: var(--bloodlink-ink);
+  background: var(--bloodlink-surface);
+  line-height: 1.45;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+h1 {
+  font-size: 1.6rem;
+  margin: 0 0 8px;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 0 0 12px;
+}
+
+p {
+  margin: 8px 0;
+}
+
+a {
+  color: var(--bloodlink-accent);
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid var(--bloodlink-line);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--bloodlink-muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--bloodlink-line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+button {
+  font: inherit;
+  border: 1px solid var(--bloodlink-line);
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--bloodlink-accent);
+  border-color: var(--bloodlink-accent);
+  color: #ffffff;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--bloodlink-accent-strong);
+}
+
+button.danger {
+  background: #ffffff;
+  border-color: var(--bloodlink-accent);
+  color: var(--bloodlink-accent);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 10px;
+  border: 1px solid var(--bloodlink-line);
+  color: var(--bloodlink-muted);
+}
+
+.badge.pending {
+  color: var(--bloodlink-warn);
+  border-color: var(--bloodlink-warn);
+}
+
+.badge.cancelled {
+  color: var(--bloodlink-muted);
+}
+
+.badge.verified {
+  color: var(--bloodlink-ok);
+  border-color: var(--bloodlink-ok);
+}
+
+.badge.rejected {
+  color: var(--bloodlink-accent);
+  border-color: var(--bloodlink-accent);
+}
+
+.alert {
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 12px 0;
+  border: 1px solid;
+}
+
+.alert.error {
+  border-color: var(--bloodlink-accent);
+  background: #fdf1f0;
+  color: var(--bloodlink-accent-strong);
+}
+
+.alert.success {
+  border-color: var(--bloodlink-ok);
+  background: #eef8f1;
+  color: var(--bloodlink-ok);
+}
+
+.muted {
+  color: var(--bloodlink-muted);
+  font-size: 0.9rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  border-bottom: 1px solid var(--bloodlink-line);
+  padding: 8px 6px;
+  font-size: 0.92rem;
+}
+
+.nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--bloodlink-line);
+  background: #ffffff;
+}
+
+.nav strong {
+  margin-right: auto;
+}

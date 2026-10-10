@@ -1,4 +1,6 @@
 # Hospital discovery components
 
-TODO(D2): Add discovery/selection components using `packages/ui` and the
-established design system. Do not create duplicate global primitives here.
+D2 discovery UI currently composes plain semantic elements styled by the
+application stylesheet because `packages/ui` does not export design-system
+primitives yet. Migrate these screens to the shared primitives as soon as the
+design system lands.

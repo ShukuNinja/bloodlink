@@ -1,4 +1,6 @@
 # PatientNeed components
 
-TODO(D2): Add feature components using `packages/ui` and the established design
-system. Do not create duplicate global primitives here.
+D2 PatientNeed UI currently composes plain semantic elements styled by the
+application stylesheet because `packages/ui` does not export design-system
+primitives yet. Migrate these screens to the shared primitives as soon as the
+design system lands.
