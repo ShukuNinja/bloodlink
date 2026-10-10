@@ -16,9 +16,10 @@ export class HospitalsController {
   /**
    * OWNER: D2
    * ENDPOINT: GET /api/v1/hospitals
-   * PURPOSE: Scaffold nearby hospital discovery for selection.
-   * INPUT: Transient latitude/longitude; optional radiusMeters and query.
-   * OUTPUT: HospitalSearchResponse with discovery-safe summaries.
+   * PURPOSE: Nearby hospital discovery for PatientNeed hospital selection.
+   * INPUT: Transient latitude/longitude; optional radiusMeters and query,
+   * validated by the canonical shared hospitalSearchSchema.
+   * OUTPUT: HospitalSearchResponse with discovery-safe HospitalSummary items.
    * AUTHORIZATION: Authenticated INDIVIDUAL.
    * DEPENDENCIES: Shared search validation, Auth primitives, HospitalsService, PostGIS.
    * STATE CHANGES: None; caller coordinates are transient and never persisted.

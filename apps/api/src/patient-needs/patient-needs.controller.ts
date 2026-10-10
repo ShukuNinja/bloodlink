@@ -2,7 +2,10 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
@@ -16,7 +19,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../http/zod-validation.pipe';
 import { PatientNeedsService } from './patient-needs.service';
-import type { PatientNeedListQuery } from './patient-needs.types';
+import {
+  patientNeedListQuerySchema,
+  type PatientNeedListQueryInput,
+} from './patient-needs.validation';
 
 @Controller('patient-needs')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,12 +33,13 @@ export class PatientNeedsController {
   /**
    * OWNER: D2
    * ENDPOINT: POST /api/v1/patient-needs
-   * PURPOSE: Scaffold individual PatientNeed creation.
-   * INPUT: CreatePatientNeedRequest; submittedByUserId is taken from the authenticated user.
-   * OUTPUT: PatientNeedResponse data.
+   * PURPOSE: Create an individual PatientNeed hospital-review handoff.
+   * INPUT: CreatePatientNeedRequest validated by the canonical shared schema;
+   * submittedByUserId is always taken from the authenticated principal.
+   * OUTPUT: PatientNeedResponse data (201).
    * AUTHORIZATION: Authenticated INDIVIDUAL; ownership is server-assigned.
    * DEPENDENCIES: Auth primitives, shared Zod schema, PatientNeedsService.
-   * STATE CHANGES: TODO(D2) create with PENDING_HOSPITAL_REVIEW.
+   * STATE CHANGES: Inserts one PatientNeed with PENDING_HOSPITAL_REVIEW.
    * NON-RESPONSIBILITIES: Hospital verification, BloodRequest creation, medical decisions.
    */
   @Post()
@@ -47,10 +54,10 @@ export class PatientNeedsController {
   /**
    * OWNER: D2
    * ENDPOINT: GET /api/v1/patient-needs
-   * PURPOSE: Scaffold the authenticated individual's own PatientNeed history.
-   * INPUT: Optional page and pageSize query values.
-   * OUTPUT: PatientNeedListResponse data and pagination metadata.
-   * AUTHORIZATION: Authenticated INDIVIDUAL; results must be owner-scoped.
+   * PURPOSE: List the authenticated individual's own PatientNeed history.
+   * INPUT: Optional page and pageSize query values parsed at the API boundary.
+   * OUTPUT: PatientNeedListResponse data and PaginationMeta.
+   * AUTHORIZATION: Authenticated INDIVIDUAL; results are owner-scoped in the database query.
    * DEPENDENCIES: Auth primitives, PatientNeedsService.
    * STATE CHANGES: None.
    * NON-RESPONSIBILITIES: Hospital review queues or other users' records.
@@ -58,7 +65,8 @@ export class PatientNeedsController {
   @Get()
   findMany(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Query() query: PatientNeedListQuery,
+    @Query(new ZodValidationPipe(patientNeedListQuerySchema))
+    query: PatientNeedListQueryInput,
   ) {
     return this.patientNeeds.findManyByOwner(user.id, query);
   }
@@ -66,10 +74,11 @@ export class PatientNeedsController {
   /**
    * OWNER: D2
    * ENDPOINT: GET /api/v1/patient-needs/:id
-   * PURPOSE: Scaffold retrieval of one PatientNeed owned by the caller.
-   * INPUT: PatientNeed ID path parameter.
+   * PURPOSE: Retrieve one PatientNeed owned by the caller.
+   * INPUT: PatientNeed UUID path parameter.
    * OUTPUT: PatientNeedResponse data.
-   * AUTHORIZATION: Authenticated INDIVIDUAL; service/repository must verify ownership.
+   * AUTHORIZATION: Authenticated INDIVIDUAL; ownership is enforced in the
+   * database query. Another individual's record is reported as not found.
    * DEPENDENCIES: Auth primitives, PatientNeedsService.
    * STATE CHANGES: None.
    * NON-RESPONSIBILITIES: Hospital verification or access to another user's record.
@@ -77,7 +86,7 @@ export class PatientNeedsController {
   @Get(':id')
   findOne(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.patientNeeds.findByOwner(user.id, id);
   }
@@ -85,16 +94,21 @@ export class PatientNeedsController {
   /**
    * OWNER: D2
    * ENDPOINT: POST /api/v1/patient-needs/:id/cancel
-   * PURPOSE: Scaffold owner-requested cancellation.
-   * INPUT: PatientNeed ID path parameter.
-   * OUTPUT: PatientNeedResponse data.
+   * PURPOSE: Owner-requested cancellation of a pending PatientNeed.
+   * INPUT: PatientNeed UUID path parameter.
+   * OUTPUT: PatientNeedResponse data (200).
    * AUTHORIZATION: Authenticated INDIVIDUAL and verified record ownership.
    * DEPENDENCIES: Auth primitives, PatientNeedsService.
-   * STATE CHANGES: TODO(D2) PENDING_HOSPITAL_REVIEW to CANCELLED only.
+   * STATE CHANGES: PENDING_HOSPITAL_REVIEW -> CANCELLED via a conditional
+   * transactional write; other states are rejected with 409.
    * NON-RESPONSIBILITIES: Hospital verification/rejection or downstream workflows.
    */
   @Post(':id/cancel')
-  cancel(@CurrentUser() user: AuthenticatedPrincipal, @Param('id') id: string) {
+  @HttpCode(HttpStatus.OK)
+  cancel(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     return this.patientNeeds.cancelOwned(user.id, id);
   }
 }
