@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  HttpCode,
+  HttpStatus,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
@@ -60,14 +63,18 @@ export class BloodRequestsController {
   }
 
   @Get(':id')
-  getOne(@CurrentUser() user: AuthenticatedPrincipal, @Param('id') id: string) {
+  getOne(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     return this.bloodRequests.findOneForUser(user.id, id);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/cancel')
   cancel(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(cancelBloodRequestSchema)) _input?: unknown,
   ) {
     void _input;
@@ -77,58 +84,63 @@ export class BloodRequestsController {
   @Get(':id/responses')
   listResponses(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.bloodRequests.listResponseReferences(user.id, id);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/responders/:responseId/select')
   selectResponder(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Param('id') id: string,
-    @Param('responseId') responseId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('responseId', new ParseUUIDPipe()) responseId: string,
     @Body(new ZodValidationPipe(selectResponderSchema))
     input: AssignResponderRequest,
   ) {
     return this.assignments.select(user.id, id, responseId, input);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/responders/:responseId/standby')
   standbyResponder(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Param('id') id: string,
-    @Param('responseId') responseId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('responseId', new ParseUUIDPipe()) responseId: string,
     @Body(new ZodValidationPipe(standbyResponderSchema))
     input: AssignResponderRequest,
   ) {
     return this.assignments.standby(user.id, id, responseId, input);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/responders/:responseId/release')
   releaseResponder(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Param('id') id: string,
-    @Param('responseId') responseId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('responseId', new ParseUUIDPipe()) responseId: string,
     @Body(new ZodValidationPipe(releaseResponderSchema))
     input: AssignResponderRequest,
   ) {
     return this.assignments.release(user.id, id, responseId, input);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/fulfillment/start')
   startFulfillment(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(fulfillmentStartSchema)) _input?: unknown,
   ) {
     void _input;
     return this.bloodRequests.startFulfillment(user.id, id);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post(':id/fulfillment/confirm')
   confirmFulfillment(
     @CurrentUser() user: AuthenticatedPrincipal,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(fulfillmentConfirmSchema)) _input?: unknown,
   ) {
     void _input;
