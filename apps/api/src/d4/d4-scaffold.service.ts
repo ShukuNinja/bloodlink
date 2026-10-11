@@ -5,6 +5,7 @@ import { ResponsesService } from '../responses/responses.service';
 import { MatchingService } from '../matching/matching.service';
 import { CommunicationService } from '../communication/communication.service';
 import { HospitalSubscriptionsService } from '../hospital-subscriptions/hospital-subscriptions.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * OWNER: D4
@@ -22,6 +23,7 @@ export class D4ScaffoldService {
     private readonly matching: MatchingService,
     private readonly communication: CommunicationService,
     private readonly subscriptions: HospitalSubscriptionsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   getDonorProfile(userId: string) {
@@ -49,6 +51,14 @@ export class D4ScaffoldService {
 
   withdrawRequest(userId: string, requestId: string) {
     return this.responses.withdrawDonor(userId, requestId);
+  }
+
+  listDonorResponses(userId: string) {
+    return this.responses.listDonorResponses(userId);
+  }
+
+  listOrganizationResponses(userId: string) {
+    return this.responses.listOrganizationResponses(userId);
   }
 
   listBloodCentreRequests(userId: string, query: unknown) {
@@ -80,6 +90,10 @@ export class D4ScaffoldService {
 
   listSubscriptions(userId: string) {
     return this.subscriptions.listSubscriptions(userId);
+  }
+
+  listNotifications(userId: string) {
+    return this.notifications.listForIndividual(userId);
   }
 
   getConversation(userId: string, requestId: string) {

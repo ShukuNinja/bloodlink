@@ -8,9 +8,10 @@ import type { ApiSuccess } from '@bloodlink/contracts';
 import {
   apiRequest,
   clearAccessToken,
+  getRefreshToken,
   getAccessToken,
-  setAccessToken,
-} from './client';
+  setSessionTokens,
+} from './client.ts';
 
 export async function register(input: RegisterInput): Promise<AuthResponse> {
   const envelope = await apiRequest<ApiSuccess<AuthResponse>>(
@@ -18,7 +19,7 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
     '/auth/register',
     { body: input },
   );
-  setAccessToken(envelope.data.accessToken);
+  setSessionTokens(envelope.data.accessToken, envelope.data.refreshToken);
   return envelope.data;
 }
 
@@ -28,7 +29,7 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
     '/auth/login',
     { body: input },
   );
-  setAccessToken(envelope.data.accessToken);
+  setSessionTokens(envelope.data.accessToken, envelope.data.refreshToken);
   return envelope.data;
 }
 
@@ -37,8 +38,18 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
   return envelope.data;
 }
 
-export function signOut(): void {
-  clearAccessToken();
+export async function signOut(): Promise<void> {
+  const refreshToken = getRefreshToken();
+  try {
+    if (refreshToken) {
+      await apiRequest('POST', '/auth/logout', {
+        body: { refreshToken },
+        skipRefresh: true,
+      });
+    }
+  } finally {
+    clearAccessToken();
+  }
 }
 
 export function isSignedIn(): boolean {

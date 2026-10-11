@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type {
   BloodRequestDetail,
@@ -10,6 +11,7 @@ import type {
   ResponderAssignmentView,
   ResponderResponseReference,
 } from '@bloodlink/contracts';
+import type { Prisma } from '../database/generated/prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { findMemberHospitalIds } from './d3-memberships';
 import {
@@ -121,26 +123,70 @@ export class BloodRequestsRepository {
     bloodRequestId: string,
   ): Promise<ResponderResponseReference[]> {
     const row = await this.findScopedRequest(userId, bloodRequestId);
-    const [donorResponses, organizationResponses] = await Promise.all([
-      this.prisma.donorResponse.findMany({
+    const donorResponses =
+      typeof this.prisma.$queryRaw === 'function'
+        ? await (async () => {
+            const [directUserLink] = await this.prisma.$queryRaw<
+              Array<{ present: boolean }>
+            >`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'DonorResponse'
+          AND column_name = 'userId'
+      ) AS present
+        `;
+            return directUserLink?.present
+              ? await this.prisma.$queryRaw<
+                  Array<{
+                    id: string;
+                    status: string;
+                  }>
+                >`
+          SELECT response.id, response.status
+          FROM "DonorResponse" response
+          WHERE response."bloodRequestId" = ${row.id}::uuid
+          ORDER BY response."createdAt" ASC
+        `
+              : await this.prisma.$queryRaw<
+                  Array<{
+                    id: string;
+                    status: string;
+                  }>
+                >`
+          SELECT response.id, response.status
+          FROM "DonorResponse" response
+          JOIN "DonorProfile" profile ON profile.id = response."donorId"
+          WHERE response."bloodRequestId" = ${row.id}::uuid
+          ORDER BY response."createdAt" ASC
+        `;
+          })()
+        : await this.prisma.donorResponse.findMany({
+            where: { bloodRequestId: row.id },
+            select: { id: true, status: true },
+            orderBy: { createdAt: 'asc' },
+          });
+    const organizationResponses =
+      await this.prisma.organizationResponse.findMany({
         where: { bloodRequestId: row.id },
-        select: { id: true },
+        select: {
+          id: true,
+          status: true,
+          organization: { select: { name: true } },
+        },
         orderBy: { createdAt: 'asc' },
-      }),
-      this.prisma.organizationResponse.findMany({
-        where: { bloodRequestId: row.id },
-        select: { id: true },
-        orderBy: { createdAt: 'asc' },
-      }),
-    ]);
+      });
     return [
       ...donorResponses.map((response): ResponderResponseReference => ({
         responseId: response.id,
         responseType: 'DONOR_RESPONSE',
+        status: response.status as ResponderResponseReference['status'],
       })),
       ...organizationResponses.map((response): ResponderResponseReference => ({
         responseId: response.id,
         responseType: 'ORGANIZATION_RESPONSE',
+        status: response.status,
+        responderName: response.organization.name,
       })),
     ];
   }
@@ -164,10 +210,30 @@ export class BloodRequestsRepository {
     }
     const selected = await this.prisma.responderAssignment.findFirst({
       where: { bloodRequestId: row.id, state: 'SELECTED' },
-      select: { id: true },
+      select: {
+        id: true,
+        donorResponseId: true,
+        organizationResponseId: true,
+      },
     });
     if (!selected) {
       throw new ConflictException('No responder has been selected');
+    }
+    const response = selected.donorResponseId
+      ? await this.prisma.donorResponse.findUnique({
+          where: { id: selected.donorResponseId },
+          select: { status: true },
+        })
+      : selected.organizationResponseId
+        ? await this.prisma.organizationResponse.findUnique({
+            where: { id: selected.organizationResponseId },
+            select: { status: true },
+          })
+        : null;
+    if (response?.status !== 'ACCEPTED') {
+      throw new ConflictException(
+        'The selected responder no longer has an active response',
+      );
     }
 
     const updated = await this.prisma.bloodRequest.updateMany({
@@ -184,12 +250,22 @@ export class BloodRequestsRepository {
   }
 
   /**
-   * Confirmation is allowed only from FULFILLMENT_PENDING; a confirmed or
-   * fulfilled request never transitions backward.
+   * Confirmation is allowed only from FULFILLMENT_PENDING. The selected
+   * response must remain accepted; donor recording and D3 state transition
+   * share one transaction. Confirmed requests never transition backward.
    */
   async confirmFulfillment(
     userId: string,
     bloodRequestId: string,
+    recordDonation: (
+      transaction: Prisma.TransactionClient,
+      input: {
+        donorUserId: string;
+        bloodRequestId: string;
+        confirmedAt: Date;
+        confirmedByUserId: string;
+      },
+    ) => Promise<unknown>,
   ): Promise<BloodRequestRecord> {
     const row = await this.findScopedRequest(userId, bloodRequestId);
     if (row.status !== 'FULFILLMENT_PENDING') {
@@ -197,16 +273,81 @@ export class BloodRequestsRepository {
         'Fulfillment cannot be confirmed in this state',
       );
     }
-    const updated = await this.prisma.bloodRequest.updateMany({
-      where: { id: row.id, status: 'FULFILLMENT_PENDING' },
-      data: { status: 'FULFILLMENT_CONFIRMED' },
+    return this.prisma.$transaction(async (transaction) => {
+      const selected = await transaction.responderAssignment.findFirst({
+        where: { bloodRequestId: row.id, state: 'SELECTED' },
+        select: { donorResponseId: true, organizationResponseId: true },
+      });
+      if (!selected) {
+        throw new ConflictException('No responder is selected');
+      }
+
+      let donorUserId: string | null = null;
+      if (selected.donorResponseId) {
+        if (typeof transaction.$queryRaw === 'function') {
+          const [directUserLink] = await transaction.$queryRaw<
+            Array<{ present: boolean }>
+          >`
+            SELECT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema = current_schema()
+                AND table_name = 'DonorResponse'
+                AND column_name = 'userId'
+            ) AS present
+          `;
+          if (!directUserLink?.present) {
+            throw new ServiceUnavailableException(
+              'Individual donation confirmation requires the direct-Individual donor migration.',
+            );
+          }
+        }
+        const response = await transaction.donorResponse.findUnique({
+          where: { id: selected.donorResponseId },
+          select: { userId: true, status: true },
+        });
+        if (response?.status !== 'ACCEPTED') {
+          throw new ConflictException(
+            'The selected donor no longer has an active response',
+          );
+        }
+        donorUserId = response.userId;
+      } else if (selected.organizationResponseId) {
+        const response = await transaction.organizationResponse.findUnique({
+          where: { id: selected.organizationResponseId },
+          select: { status: true },
+        });
+        if (response?.status !== 'ACCEPTED') {
+          throw new ConflictException(
+            'The selected blood centre no longer has an active response',
+          );
+        }
+      } else {
+        throw new ConflictException('The selected responder is unavailable');
+      }
+
+      const confirmedAt = new Date();
+      const updated = await transaction.bloodRequest.updateMany({
+        where: { id: row.id, status: 'FULFILLMENT_PENDING' },
+        data: { status: 'FULFILLMENT_CONFIRMED' },
+      });
+      if (updated.count === 0) {
+        throw new ConflictException(
+          'Fulfillment cannot be confirmed in this state',
+        );
+      }
+      if (donorUserId) {
+        await recordDonation(transaction, {
+          donorUserId,
+          bloodRequestId: row.id,
+          confirmedAt,
+          confirmedByUserId: userId,
+        });
+      }
+      return toBloodRequestRecord({
+        ...row,
+        status: 'FULFILLMENT_CONFIRMED',
+      });
     });
-    if (updated.count === 0) {
-      throw new ConflictException(
-        'Fulfillment cannot be confirmed in this state',
-      );
-    }
-    return toBloodRequestRecord({ ...row, status: 'FULFILLMENT_CONFIRMED' });
   }
 
   private async findScopedRequest(userId: string, bloodRequestId: string) {

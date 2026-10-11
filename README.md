@@ -32,3 +32,12 @@ packages/
 
 prisma/
 docs/
+```
+
+## Web + API deployment
+
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for PostgreSQL/PostGIS and API
+environment configuration, build/start commands, and deployment checks.
+
+See [`docs/PROGRESS_LOG.md`](docs/PROGRESS_LOG.md) for the current integration
+branch checkpoint, verification status, and resumable next steps.

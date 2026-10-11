@@ -2,10 +2,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type { DonorResponse, OrganizationResponse } from '@bloodlink/contracts';
 import { PrismaService } from '../database/prisma.service';
-import { DonorProfileService } from '../donor-profile/donor-profile.service';
 
 /**
  * OWNER: D4
@@ -21,22 +21,20 @@ import { DonorProfileService } from '../donor-profile/donor-profile.service';
  * duplicated (unique per request per responder).
  * STATE CHANGES: D4 response records only. Acceptance never creates
  * DonationRecord rows and never mutates BloodRequest lifecycle or
- * ResponderAssignment state — D3 coordinates from these records.
+ * ResponderAssignment state — D3 coordinates from these records and invokes
+ * the D4 Donations boundary when hospital fulfillment is confirmed.
  * NON-RESPONSIBILITIES: Matching, notifications, medical eligibility.
  */
 @Injectable()
 export class ResponsesService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly profiles: DonorProfileService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async acceptDonor(userId: string, bloodRequestId: string) {
-    const profile = await this.requireProfile(userId);
+    await this.requireDirectIndividualResponseSchema();
     await this.requireOpenForResponses(bloodRequestId);
 
     const existing = await this.prisma.donorResponse.findFirst({
-      where: { bloodRequestId, donorId: profile.id },
+      where: { bloodRequestId, userId },
     });
     if (existing && existing.status === 'ACCEPTED') {
       throw new ConflictException('Response already accepted');
@@ -55,7 +53,7 @@ export class ResponsesService {
       const created = await this.prisma.donorResponse.create({
         data: {
           bloodRequestId,
-          donorId: profile.id,
+          userId,
           status: 'ACCEPTED',
           respondedAt: now,
           confirmedAt: now,
@@ -71,9 +69,9 @@ export class ResponsesService {
   }
 
   async withdrawDonor(userId: string, bloodRequestId: string) {
-    const profile = await this.requireProfile(userId);
+    await this.requireDirectIndividualResponseSchema();
     const existing = await this.prisma.donorResponse.findFirst({
-      where: { bloodRequestId, donorId: profile.id },
+      where: { bloodRequestId, userId },
     });
     if (!existing) throw new NotFoundException('Response not found');
     if (existing.status === 'WITHDRAWN') {
@@ -84,6 +82,91 @@ export class ResponsesService {
       data: { status: 'WITHDRAWN' },
     });
     return toDonorResponse(updated);
+  }
+
+  async listDonorResponses(userId: string) {
+    if (typeof this.prisma.$queryRaw !== 'function') {
+      const rows = await this.prisma.donorResponse.findMany({
+        where: { userId },
+        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+      });
+      return rows.map(toDonorResponse);
+    }
+    const [directUserLink] = await this.prisma.$queryRaw<
+      Array<{ present: boolean }>
+    >`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'DonorResponse'
+          AND column_name = 'userId'
+      ) AS present
+    `;
+    const rows = directUserLink?.present
+      ? await this.prisma.donorResponse.findMany({
+          where: { userId },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+        })
+      : await this.prisma.$queryRaw<
+          Array<{
+            id: string;
+            bloodRequestId: string;
+            status: string;
+            respondedAt: Date | null;
+            confirmedAt: Date | null;
+            createdAt: Date;
+            updatedAt: Date;
+          }>
+        >`
+          SELECT response.id, response."bloodRequestId", response.status,
+            response."respondedAt", response."confirmedAt",
+            response."createdAt", response."updatedAt"
+          FROM "DonorResponse" response
+          JOIN "DonorProfile" profile ON profile.id = response."donorId"
+          WHERE profile."userId" = ${userId}::uuid
+          ORDER BY response."updatedAt" DESC, response.id ASC
+        `;
+    return rows.map(toDonorResponse);
+  }
+
+  private async requireDirectIndividualResponseSchema() {
+    if (typeof this.prisma.$queryRaw !== 'function') return;
+    const [column] = await this.prisma.$queryRaw<Array<{ present: boolean }>>`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'DonorResponse'
+          AND column_name = 'userId'
+      ) AS present
+    `;
+    if (!column?.present) {
+      throw new ServiceUnavailableException(
+        'Individual responses are unavailable until the direct-Individual donor migration is applied.',
+      );
+    }
+  }
+
+  async listOrganizationResponses(userId: string) {
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        role: { in: ['BLOOD_CENTRE_ADMIN', 'BLOOD_CENTRE_STAFF'] },
+        organization: { status: 'ACTIVE', type: 'BLOOD_CENTRE' },
+      },
+      select: { organizationId: true },
+    });
+    const organizationIds = memberships.map(
+      (membership) => membership.organizationId,
+    );
+    if (organizationIds.length === 0) {
+      throw new NotFoundException('Blood centre membership not found');
+    }
+    const rows = await this.prisma.organizationResponse.findMany({
+      where: { organizationId: { in: organizationIds } },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+    });
+    return rows.map(toOrganizationResponse);
   }
 
   async createOrganizationResponse(userId: string, bloodRequestId: string) {
@@ -139,12 +222,6 @@ export class ResponsesService {
       data: { status: 'WITHDRAWN' },
     });
     return toOrganizationResponse(updated);
-  }
-
-  private async requireProfile(userId: string) {
-    const profile = await this.profiles.findProfileRowByUserId(userId);
-    if (!profile) throw new NotFoundException('Donor profile not found');
-    return profile;
   }
 
   /**

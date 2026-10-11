@@ -8,19 +8,17 @@ import type {
   MatchingTier,
 } from '@bloodlink/contracts';
 import { PrismaService } from '../database/prisma.service';
-import { DonorProfileService } from '../donor-profile/donor-profile.service';
 import { toBloodRequestRecord } from '../blood-requests/hospital-patient-needs.repository';
 import {
-  EXPANDING_TIER_RADIUS_METERS,
-  NEAREST_TIER_RADIUS_METERS,
   normalizeD4Pagination,
+  REQUEST_STATUSES_OPEN_FOR_RESPONSES,
 } from '../d4/d4.validation';
 
 /**
  * OWNER: D4
  * PURPOSE: Matching boundary — donor-visible request discovery and
  * notification candidate selection.
- * AUTHORIZATION: Donor endpoints require the caller's own DonorProfile;
+ * AUTHORIZATION: Donor endpoints require an authenticated Individual;
  * blood-centre endpoints require an ACTIVE membership in an ACTIVE
  * BLOOD_CENTRE organization.
  * SPATIAL DESIGN: Radius filtering and distance ranking run on the existing
@@ -30,48 +28,31 @@ import {
  * STATE CHANGES: None (read-only boundary).
  * NON-RESPONSIBILITIES: Medical eligibility, response mutation, D3
  * lifecycle. Blood group, availability, coordination-status, and
- * notification-preference filters are applied as ordinary predicates.
+ * Individual donor discovery deliberately lists all open requests; hospitals
+ * verify compatibility after an Individual volunteers.
  */
 @Injectable()
 export class MatchingService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly profiles: DonorProfileService,
   ) {}
 
   async listDonorRequests(userId: string, query: DonorBloodRequestQuery) {
-    const profile = await this.requireProfile(userId);
+    void userId;
     const { page, pageSize, skip } = normalizeD4Pagination(query);
-    const status = query.status ?? 'OPEN';
-
-    if (!profile.bloodGroup) {
-      return {
-        data: [] as DonorBloodRequestSummary[],
-        meta: { page, pageSize, total: 0, totalPages: 0 },
-      };
-    }
-
-    // Donors without a canonical location still see blood-group-matched
-    // requests (without distance); radius filtering applies once the
-    // profile carries a location.
-    const donorPoint = await this.profileLocation(profile.id);
-
-    const baseWhere = Prisma.sql`br."status" = ${status}
-        AND br."bloodGroup" = ${profile.bloodGroup}::"PatientNeedBloodGroup"`;
-    const spatial = donorPoint
-      ? Prisma.sql`
-        AND org."location" IS NOT NULL
-        AND ST_DWithin(org."location", ST_SetSRID(ST_MakePoint(${donorPoint.longitude}, ${donorPoint.latitude}), 4326)::geography, ${NEAREST_TIER_RADIUS_METERS}::double precision)`
-      : Prisma.empty;
-    const distanceSelect = donorPoint
-      ? Prisma.sql`ST_Distance(org."location", ST_SetSRID(ST_MakePoint(${donorPoint.longitude}, ${donorPoint.latitude}), 4326)::geography) AS "distanceMeters"`
-      : Prisma.sql`NULL AS "distanceMeters"`;
+    const baseWhere = query.status
+      ? Prisma.sql`br."status" = ${query.status}::"BloodRequestStatus"`
+      : Prisma.sql`br."status" IN (${Prisma.join(
+          REQUEST_STATUSES_OPEN_FOR_RESPONSES.map(
+            (status) => Prisma.sql`${status}::"BloodRequestStatus"`,
+          ),
+        )})`;
 
     const countRows = await this.prisma.$queryRaw<Array<{ total: number }>>(
       Prisma.sql`SELECT COUNT(*)::int AS total
         FROM "BloodRequest" br
         JOIN "Organization" org ON org."id" = br."hospitalId"
-        WHERE ${baseWhere} ${spatial}`,
+        WHERE ${baseWhere}`,
     );
     const total = Number(countRows[0]?.total ?? 0);
 
@@ -90,11 +71,11 @@ export class MatchingService {
     >(
       Prisma.sql`SELECT br."id", br."bloodGroup", br."component", br."unitsRequired",
                br."urgency", br."requiredBy", br."status",
-               org."name" AS "hospitalName", ${distanceSelect}
+               org."name" AS "hospitalName", NULL AS "distanceMeters"
         FROM "BloodRequest" br
         JOIN "Organization" org ON org."id" = br."hospitalId"
-        WHERE ${baseWhere} ${spatial}
-        ORDER BY "distanceMeters" ASC NULLS LAST, br."requiredBy" ASC, br."id" ASC
+        WHERE ${baseWhere}
+        ORDER BY br."requiredBy" ASC, br."id" ASC
         LIMIT ${pageSize} OFFSET ${skip}`,
     );
 
@@ -124,39 +105,17 @@ export class MatchingService {
   }
 
   async getDonorRequest(userId: string, bloodRequestId: string) {
-    const profile = await this.requireProfile(userId);
+    void userId;
     const row = await this.prisma.bloodRequest.findFirst({
       where: {
         id: bloodRequestId,
-        ...(profile.bloodGroup
-          ? { bloodGroup: profile.bloodGroup }
-          : { id: '00000000-0000-4000-8000-000000000000' }),
+        status: { in: [...REQUEST_STATUSES_OPEN_FOR_RESPONSES] },
       },
       include: { hospital: { select: { name: true } } },
     });
     if (!row) throw new NotFoundException('BloodRequest not found');
 
-    const donorPoint = await this.profileLocation(profile.id);
-    let distanceMeters: number | null = null;
-    if (donorPoint) {
-      const within = await this.prisma.$queryRaw<
-        Array<{ distanceMeters: number | null }>
-      >(
-        Prisma.sql`SELECT CASE WHEN org."location" IS NOT NULL
-              THEN ST_Distance(org."location", ST_SetSRID(ST_MakePoint(${donorPoint.longitude}, ${donorPoint.latitude}), 4326)::geography)
-              ELSE NULL END AS "distanceMeters"
-          FROM "BloodRequest" br
-          JOIN "Organization" org ON org."id" = br."hospitalId"
-          WHERE br."id" = ${bloodRequestId}`,
-      );
-      distanceMeters = within[0]?.distanceMeters ?? null;
-      if (
-        distanceMeters !== null &&
-        distanceMeters > NEAREST_TIER_RADIUS_METERS
-      ) {
-        throw new NotFoundException('BloodRequest not found');
-      }
-    }
+    const distanceMeters: number | null = null;
 
     const summary: DonorBloodRequestSummary = {
       id: row.id,
@@ -238,60 +197,26 @@ export class MatchingService {
     });
     if (!request) throw new NotFoundException('BloodRequest not found');
 
-    const donors = await this.prisma.donorProfile.findMany({
-      where: {
-        bloodGroup: request.bloodGroup,
-        availabilityStatus: 'AVAILABLE',
-        coordinationStatus: 'ACTIVE',
-      },
+    void tier;
+    const answered = await this.prisma.donorResponse.findMany({
+      where: { bloodRequestId, status: { in: ['ACCEPTED', 'WITHDRAWN'] } },
+      select: { userId: true },
     });
-    const urgencyAllows = (preference: string | null): boolean => {
-      if (preference === 'ALL') return true;
-      if (preference === 'URGENT_ONLY')
-        return request.urgency === 'URGENT' || request.urgency === 'CRITICAL';
-      if (preference === 'CRITICAL_ONLY') return request.urgency === 'CRITICAL';
-      return false;
-    };
-    const eligible = donors.filter((donor) =>
-      urgencyAllows(donor.notificationPreference),
-    );
-
-    let candidateIds: Set<string>;
-    if (tier === 'HOSPITAL_SUBSCRIBERS') {
-      const subscriptions = await this.prisma.hospitalSubscription.findMany({
-        where: { hospitalId: request.hospitalId, status: 'ACTIVE' },
-        select: { donorId: true },
-      });
-      const subscribed = new Set(subscriptions.map((s) => s.donorId));
-      candidateIds = new Set(
-        eligible.filter((donor) => subscribed.has(donor.id)).map((d) => d.id),
-      );
-    } else {
-      const radiusMeters =
-        tier === 'EXPANDING_RADIUS'
-          ? EXPANDING_TIER_RADIUS_METERS
-          : NEAREST_TIER_RADIUS_METERS;
-      const withinRows = await this.prisma.$queryRaw<
-        Array<{ donorId: string }>
-      >(
-        Prisma.sql`SELECT dp."id" AS "donorId"
-          FROM "DonorProfile" dp
-          JOIN "Organization" org ON org."id" = ${request.hospitalId}
-          WHERE dp."location" IS NOT NULL
-            AND org."location" IS NOT NULL
-            AND dp."bloodGroup" = ${request.bloodGroup}::"PatientNeedBloodGroup"
-            AND ST_DWithin(dp."location", org."location", ${radiusMeters}::double precision)`,
-      );
-      const within = new Set(withinRows.map((row) => row.donorId));
-      candidateIds = new Set(
-        eligible.filter((donor) => within.has(donor.id)).map((d) => d.id),
-      );
-    }
+    const users = await this.prisma.user.findMany({
+      where: {
+        role: 'INDIVIDUAL',
+        status: 'ACTIVE',
+        id: { notIn: answered.map((response) => response.userId) },
+      },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    const candidateIds = users.map((user) => user.id);
 
     return {
       bloodRequestId: request.id,
       tier,
-      candidates: [...candidateIds].map((donorId) => ({
+      candidates: candidateIds.map((donorId) => ({
         donorId,
         // Distance is derived server-side from canonical geography when a
         // notification is composed; the boundary only exposes an approximate
@@ -299,12 +224,6 @@ export class MatchingService {
         approximateDistanceKm: 0,
       })),
     };
-  }
-
-  private async requireProfile(userId: string) {
-    const profile = await this.profiles.findProfileRowByUserId(userId);
-    if (!profile) throw new NotFoundException('Donor profile not found');
-    return profile;
   }
 
   private async requireBloodCentreMembership(userId: string) {
@@ -323,19 +242,4 @@ export class MatchingService {
     return membership.organizationId;
   }
 
-  /** Reads the canonical geography back as lon/lat for bind parameters. */
-  private async profileLocation(
-    profileId: string,
-  ): Promise<{ latitude: number; longitude: number } | null> {
-    const rows = await this.prisma.$queryRaw<
-      Array<{ latitude: number | null; longitude: number | null }>
-    >(
-      Prisma.sql`SELECT CASE WHEN "location" IS NOT NULL THEN ST_Y("location"::geometry) ELSE NULL END AS latitude,
-               CASE WHEN "location" IS NOT NULL THEN ST_X("location"::geometry) ELSE NULL END AS longitude
-        FROM "DonorProfile" WHERE "id" = ${profileId}`,
-    );
-    const row = rows[0];
-    if (!row || row.latitude === null || row.longitude === null) return null;
-    return { latitude: Number(row.latitude), longitude: Number(row.longitude) };
-  }
 }

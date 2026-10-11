@@ -1,5 +1,9 @@
 # Implementation Plan and Acceptance Criteria
 
+The checkboxes below are the delivery acceptance target, not a claim that the
+current branch has passed every item. See `PROGRESS_LOG.md` for the latest
+source and verification checkpoint.
+
 ## Guiding rule
 
 Complete the web client and backend as a coherent, testable vertical slice. Do not build mobile features in this delivery. Work from verified API behavior, shared contracts, and approved ownership boundaries.
@@ -60,13 +64,13 @@ Complete the web client and backend as a coherent, testable vertical slice. Do n
 - [ ] On verification, create the official BloodRequest using the approved workflow.
 - [ ] Build request lifecycle UI using server-supported transitions only.
 - [ ] Handle responder assignments and fulfillment without bypassing D3 ownership.
-- [ ] Resolve the fulfillment/DonationRecord boundary before asserting a request is fulfilled.
+- [x] Resolve the fulfillment/DonationRecord boundary: confirming a selected Individual donor creates a DonationRecord in the same transaction; confirming a selected Blood Centre does not create an Individual DonationRecord. The current terminal state is `FULFILLMENT_CONFIRMED`; no later transition to `FULFILLED` is implemented.
 
 **Exit condition:** hospital review produces a distinct official BloodRequest and lifecycle changes persist in the database.
 
 ## Phase 5 — donor and organization coordination
 
-- [ ] Complete donor profile views and mutations supported by the API.
+- [x] Remove advance donor preference/profile requirements from the active Individual response journey; all open requests are visible to Individuals.
 - [ ] Complete donor and organization response journeys.
 - [ ] Apply request-specific consent and two-way acceptance where required.
 - [ ] Keep communication scoped to authorized request participants.
@@ -80,7 +84,7 @@ Complete the web client and backend as a coherent, testable vertical slice. Do n
 
 - [ ] Test individual → hospital discovery → subscribe → hospital posts request → notification path.
 - [ ] Test individual → PatientNeed → hospital review → official BloodRequest.
-- [ ] Test supported donor/organization response and acceptance path.
+- [ ] Test Individual response, Hospital selection, and Blood Centre coordination paths.
 - [ ] Test unauthorized access and cross-user data access.
 - [ ] Test reloads, repeated clicks, stale state, and network errors.
 - [ ] Verify no fake success states, hidden API errors, or console errors.

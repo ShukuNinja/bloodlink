@@ -12,6 +12,7 @@ import { PatientNeedsModule } from './patient-needs/patient-needs.module';
 import { HospitalsModule } from './hospitals/hospitals.module';
 import { BloodRequestsModule } from './blood-requests/blood-requests.module';
 import { D4Module } from './d4/d4.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { D4Module } from './d4/d4.module';
     HospitalsModule,
     BloodRequestsModule,
     D4Module,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [

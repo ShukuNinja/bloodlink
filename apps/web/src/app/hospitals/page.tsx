@@ -3,53 +3,170 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useEffect } from 'react';
 import { useHospitalSearch } from '@/features/individual/hospitals/hooks';
+import { ApiClientError } from '@/api/client';
+import { hospitalSubscriptionApi } from '@/features/individual/hospitals/api';
+import { isSubscriptionActionDisabled } from '@/features/individual/hospitals/subscription-state';
+import {
+  BrowserLocationError,
+  parseCoordinates,
+  parseRadiusKilometres,
+  requestBrowserCoordinates,
+} from '@/features/individual/hospitals/location';
 
 export default function HospitalsPage() {
   const router = useRouter();
   const { results, loading, error, searched, search } = useHospitalSearch();
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [radiusMeters, setRadiusMeters] = useState('');
+  const [radiusKilometres, setRadiusKilometres] = useState('');
   const [query, setQuery] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set());
+  const [subscriptionSetupRequired, setSubscriptionSetupRequired] =
+    useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionBusyIds, setSubscriptionBusyIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [subscriptionLoadError, setSubscriptionLoadError] = useState<
+    string | null
+  >(null);
+  const [subscriptionActionError, setSubscriptionActionError] = useState<
+    string | null
+  >(null);
+  const [subscriptionNotice, setSubscriptionNotice] = useState<string | null>(
+    null,
+  );
+  const [subscriptionReloadKey, setSubscriptionReloadKey] = useState(0);
+  const resultIds = results?.map((hospital) => hospital.id).join(',') ?? '';
+
+  useEffect(() => {
+    if (!searched || !resultIds) return;
+    let active = true;
+    setSubscriptionLoading(true);
+    setSubscriptionLoadError(null);
+    hospitalSubscriptionApi
+      .list()
+      .then((response) => {
+        if (!active) return;
+        setSubscribedIds(
+          new Set(
+            response.data
+              .filter((row) => row.status === 'ACTIVE')
+              .map((row) => row.hospitalId),
+          ),
+        );
+        setSubscriptionSetupRequired(false);
+      })
+      .catch((cause: unknown) => {
+        if (!active) return;
+        if (cause instanceof ApiClientError && cause.status === 404) {
+          setSubscriptionSetupRequired(true);
+          setSubscribedIds(new Set());
+        } else {
+        setSubscriptionLoadError(
+            cause instanceof ApiClientError
+              ? cause.message
+              : 'Could not load subscription state.',
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setSubscriptionLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [resultIds, searched, subscriptionReloadKey]);
+
+  async function toggleSubscription(hospitalId: string, hospitalName: string) {
+    setSubscriptionBusyIds((current) => new Set(current).add(hospitalId));
+    setSubscriptionActionError(null);
+    setSubscriptionNotice(null);
+    try {
+      if (subscribedIds.has(hospitalId)) {
+        await hospitalSubscriptionApi.unsubscribe(hospitalId);
+        setSubscribedIds((current) => {
+          const next = new Set(current);
+          next.delete(hospitalId);
+          return next;
+        });
+        setSubscriptionNotice(`Unsubscribed from ${hospitalName}.`);
+      } else {
+        const response = await hospitalSubscriptionApi.subscribe(hospitalId);
+        if (response.data.status === 'ACTIVE') {
+          setSubscribedIds((current) => new Set(current).add(hospitalId));
+          setSubscriptionNotice(`Subscribed to ${hospitalName}.`);
+        }
+      }
+    } catch (cause) {
+      setSubscriptionActionError(
+        cause instanceof ApiClientError
+          ? cause.message
+          : 'Could not update this subscription.',
+      );
+      // The server may have committed even if the response was lost. Reload
+      // its state before allowing another action for any hospital.
+      setSubscriptionLoading(true);
+      setSubscriptionReloadKey((current) => current + 1);
+    } finally {
+      setSubscriptionBusyIds((current) => {
+        const next = new Set(current);
+        next.delete(hospitalId);
+        return next;
+      });
+    }
+  }
+
+  async function handleUseMyLocation() {
+    setLocationError(null);
+    if (!navigator.geolocation) {
+      setLocationError(
+        'This browser does not support location. Enter coordinates manually.',
+      );
+      return;
+    }
+
+    setLocating(true);
+    try {
+      const coordinates = await requestBrowserCoordinates(
+        navigator.geolocation,
+      );
+      setLatitude(String(coordinates.latitude));
+      setLongitude(String(coordinates.longitude));
+    } catch (error) {
+      setLocationError(
+        error instanceof BrowserLocationError
+          ? error.message
+          : 'Could not determine your location. Enter coordinates manually or retry.',
+      );
+    } finally {
+      setLocating(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setFormError(null);
 
-    const lat = Number(latitude);
-    const lon = Number(longitude);
-    if (
-      latitude === '' ||
-      longitude === '' ||
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lon)
-    ) {
-      setFormError('Latitude and longitude are required numbers.');
+    const coordinates = parseCoordinates(latitude, longitude);
+    if (!coordinates.ok) {
+      setFormError(coordinates.message);
       return;
     }
-    if (lat < -90 || lat > 90) {
-      setFormError('Latitude must be between -90 and 90.');
+    const radius = parseRadiusKilometres(radiusKilometres);
+    if (!radius.ok) {
+      setFormError(radius.message);
       return;
-    }
-    if (lon < -180 || lon > 180) {
-      setFormError('Longitude must be between -180 and 180.');
-      return;
-    }
-    let radius: number | undefined;
-    if (radiusMeters !== '') {
-      radius = Number(radiusMeters);
-      if (!Number.isFinite(radius) || radius <= 0) {
-        setFormError('Search radius must be a positive number of meters.');
-        return;
-      }
     }
 
     await search({
-      latitude: lat,
-      longitude: lon,
-      radiusMeters: radius,
+      ...coordinates.value,
+      radiusMeters: radius.value,
       query: query.trim() || undefined,
     });
   }
@@ -63,21 +180,50 @@ export default function HospitalsPage() {
     <main>
       <h1>Find nearby hospitals</h1>
       <p className="muted">
-        Search uses your current coordinates to list hospitals accepting patient
-        needs. Coordinates are never stored.
+        Use your location or enter coordinates to find hospitals accepting
+        patient needs. Location is requested only when you choose the button;
+        search coordinates are sent to the API and are not persisted.
       </p>
 
       <form className="card" onSubmit={handleSubmit}>
-        {formError ? <div className="alert error">{formError}</div> : null}
+        {formError ? (
+          <div className="alert error" role="alert">
+            {formError}
+          </div>
+        ) : null}
+        {locationError ? (
+          <div className="alert error" role="alert">
+            {locationError}
+          </div>
+        ) : null}
+        <div className="row">
+          <button
+            type="button"
+            onClick={() => void handleUseMyLocation()}
+            disabled={locating}
+          >
+            {locating ? 'Getting location…' : 'Use my location'}
+          </button>
+          <span className="muted">
+            You can deny permission and enter coordinates below.
+          </span>
+        </div>
         <div className="row">
           <div className="field">
             <label htmlFor="latitude">Latitude</label>
             <input
               id="latitude"
+              type="number"
               inputMode="decimal"
-              placeholder="6.5244"
+              step="any"
+              min="-90"
+              max="90"
+              placeholder="Enter latitude"
               value={latitude}
-              onChange={(event) => setLatitude(event.target.value)}
+              onChange={(event) => {
+                setLatitude(event.target.value);
+                setLocationError(null);
+              }}
               required
             />
           </div>
@@ -85,31 +231,44 @@ export default function HospitalsPage() {
             <label htmlFor="longitude">Longitude</label>
             <input
               id="longitude"
+              type="number"
               inputMode="decimal"
-              placeholder="3.3792"
+              step="any"
+              min="-180"
+              max="180"
+              placeholder="Enter longitude"
               value={longitude}
-              onChange={(event) => setLongitude(event.target.value)}
+              onChange={(event) => {
+                setLongitude(event.target.value);
+                setLocationError(null);
+              }}
               required
             />
           </div>
           <div className="field">
-            <label htmlFor="radius">Radius (meters, optional)</label>
+            <label htmlFor="radius">Search radius (kilometres, optional)</label>
             <input
               id="radius"
+              type="number"
               inputMode="numeric"
-              placeholder="25000"
-              value={radiusMeters}
-              onChange={(event) => setRadiusMeters(event.target.value)}
+              min="0"
+              step="any"
+              placeholder="25 (API default)"
+              value={radiusKilometres}
+              onChange={(event) => setRadiusKilometres(event.target.value)}
             />
           </div>
           <div className="field">
-            <label htmlFor="query">Name contains (optional)</label>
+            <label htmlFor="query">Hospital name contains (optional)</label>
             <input
               id="query"
               placeholder="City"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
+            <span className="muted">
+              A location is still required for name filtering.
+            </span>
           </div>
         </div>
         <button className="primary" type="submit" disabled={loading}>
@@ -126,6 +285,34 @@ export default function HospitalsPage() {
           <div className="alert error">{error.message}</div>
         )
       ) : null}
+      {subscriptionSetupRequired ? (
+        <div className="alert">
+          <Link href="/donor">Set up your optional donor preferences</Link>{' '}
+          before following hospital requests.
+        </div>
+      ) : null}
+      {subscriptionLoadError ? (
+        <div className="alert error" role="alert">
+          <span>{subscriptionLoadError}</span>{' '}
+          <button
+            type="button"
+            disabled={subscriptionLoading}
+            onClick={() => setSubscriptionReloadKey((current) => current + 1)}
+          >
+            {subscriptionLoading ? 'Retrying…' : 'Retry subscription status'}
+          </button>
+        </div>
+      ) : null}
+      {subscriptionActionError ? (
+        <div className="alert error" role="alert">
+          {subscriptionActionError}
+        </div>
+      ) : null}
+      {subscriptionNotice ? (
+        <div className="alert success" role="status">
+          {subscriptionNotice}
+        </div>
+      ) : null}
 
       {searched && !loading && !error && results && results.length === 0 ? (
         <div className="card">
@@ -133,7 +320,7 @@ export default function HospitalsPage() {
         </div>
       ) : null}
 
-      {results && results.length > 0 ? (
+      {!loading && results && results.length > 0 ? (
         <div className="card">
           <h2>Hospitals near you</h2>
           <table className="table">
@@ -141,7 +328,7 @@ export default function HospitalsPage() {
               <tr>
                 <th>Hospital</th>
                 <th>Coordinates</th>
-                <th aria-label="Actions" />
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -153,12 +340,35 @@ export default function HospitalsPage() {
                     {hospital.longitude.toFixed(4)}
                   </td>
                   <td>
-                    <button
-                      className="primary"
-                      onClick={() => selectHospital(hospital.id, hospital.name)}
-                    >
-                      Select
-                    </button>
+                    <div className="row">
+                      <button
+                        type="button"
+                        className="primary"
+                        onClick={() =>
+                          selectHospital(hospital.id, hospital.name)
+                        }
+                      >
+                        Select
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSubscriptionActionDisabled(hospital.id, {
+                          setupRequired: subscriptionSetupRequired,
+                          loading: subscriptionLoading,
+                          loadError: subscriptionLoadError,
+                          busyHospitalIds: subscriptionBusyIds,
+                        })}
+                        onClick={() =>
+                          void toggleSubscription(hospital.id, hospital.name)
+                        }
+                      >
+                        {subscriptionBusyIds.has(hospital.id)
+                          ? 'Saving…'
+                          : subscribedIds.has(hospital.id)
+                            ? 'Unsubscribe'
+                            : 'Subscribe'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -6,13 +6,13 @@ import { MatchingService } from '../matching/matching.service';
 import { ResponsesService } from '../responses/responses.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CommunicationService } from '../communication/communication.service';
-import { DonationsService } from '../donations/donations.service';
 import { DonorProfileService } from '../donor-profile/donor-profile.service';
 import { HospitalSubscriptionsService } from '../hospital-subscriptions/hospital-subscriptions.service';
+import { DonationsModule } from '../donations/donations.module';
 
-/** OWNER: D4 | PURPOSE: Register D4 route placeholders. | ENDPOINT/METHOD: D4 API routes. | INPUT: Nest module dependencies. | OUTPUT: Guarded 501 scaffold. | AUTHORIZATION: Existing JWT/Roles guards. | DEPENDENCIES: AuthModule. | STATE CHANGES: None. | NON-RESPONSIBILITIES: D3 workflows or D4 business behavior. | IMPLEMENTATION: TODO(D4). */
+/** OWNER: D4 | PURPOSE: Register D4 donor, blood-centre, subscription, and communication routes. | ENDPOINT/METHOD: D4 API routes. | INPUT: Nest module dependencies. | OUTPUT: Guarded D4 workflows. | AUTHORIZATION: Existing JWT/Roles guards plus service-level ownership/membership checks. | DEPENDENCIES: AuthModule and D4 sub-domain services. | STATE CHANGES: D4 profiles, subscriptions, responses, conversations, and messages only. | NON-RESPONSIBILITIES: D3 lifecycle, medical decisions, inventory, or delivery. */
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, DonationsModule],
   controllers: [D4Controller],
   providers: [
     D4ScaffoldService,
@@ -20,9 +20,9 @@ import { HospitalSubscriptionsService } from '../hospital-subscriptions/hospital
     ResponsesService,
     NotificationsService,
     CommunicationService,
-    DonationsService,
     DonorProfileService,
     HospitalSubscriptionsService,
   ],
+  exports: [DonationsModule],
 })
 export class D4Module {}

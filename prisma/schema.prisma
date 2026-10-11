@@ -143,6 +143,10 @@ model User {
   refreshTokens      RefreshToken[]
   patientNeeds       PatientNeed[]
   donorProfile       DonorProfile?
+  donorResponses     DonorResponse[]
+  donorConversations  Conversation[] @relation("DonorConversationParticipant")
+  donationsAsDonor   DonationRecord[] @relation("DonationDonor")
+  hospitalSubscriptions HospitalSubscription[]
   pushSubscriptions  PushSubscription[]
   sentMessages       Message[]
   confirmedDonations DonationRecord[]
@@ -250,10 +254,6 @@ model DonorProfile {
   createdAt               DateTime                              @default(now()) @db.Timestamptz(6)
   updatedAt               DateTime                              @updatedAt @db.Timestamptz(6)
   user                    User                                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  responses               DonorResponse[]
-  subscriptions           HospitalSubscription[]
-  conversations           Conversation[]
-  donationRecords         DonationRecord[]
 
   @@index([availabilityStatus, coordinationStatus])
 }
@@ -261,18 +261,18 @@ model DonorProfile {
 model DonorResponse {
   id             String                     @id @default(uuid()) @db.Uuid
   bloodRequestId String                     @db.Uuid
-  donorId        String                     @db.Uuid
+  userId         String                     @db.Uuid
   status         CoordinationResponseStatus
   respondedAt    DateTime?                  @db.Timestamptz(6)
   confirmedAt    DateTime?                  @db.Timestamptz(6)
   createdAt      DateTime                   @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime                   @updatedAt @db.Timestamptz(6)
   bloodRequest   BloodRequest               @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade)
-  donor          DonorProfile               @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  individual     User                       @relation(fields: [userId], references: [id], onDelete: Restrict)
   assignments    ResponderAssignment[]
 
-  @@unique([bloodRequestId, donorId])
-  @@index([donorId, status])
+  @@unique([bloodRequestId, userId])
+  @@index([userId, status])
 }
 
 model OrganizationResponse {
@@ -295,15 +295,15 @@ model OrganizationResponse {
 model HospitalSubscription {
   id         String                     @id @default(uuid()) @db.Uuid
   hospitalId String                     @db.Uuid
-  donorId    String                     @db.Uuid
+  userId     String                     @db.Uuid
   status     HospitalSubscriptionStatus
   createdAt  DateTime                   @default(now()) @db.Timestamptz(6)
   updatedAt  DateTime                   @updatedAt @db.Timestamptz(6)
   hospital   Organization               @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
-  donor      DonorProfile               @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  individual User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([hospitalId, donorId])
-  @@index([donorId, status])
+  @@unique([hospitalId, userId])
+  @@index([userId, status])
 }
 
 model PushSubscription {
@@ -323,16 +323,16 @@ model PushSubscription {
 model Conversation {
   id             String             @id @default(uuid()) @db.Uuid
   bloodRequestId String             @db.Uuid
-  donorId        String?            @db.Uuid
+  donorUserId    String?            @db.Uuid
   organizationId String?            @db.Uuid
   status         ConversationStatus
   createdAt      DateTime           @default(now()) @db.Timestamptz(6)
   bloodRequest   BloodRequest       @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade)
-  donor          DonorProfile?      @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  donor          User?              @relation("DonorConversationParticipant", fields: [donorUserId], references: [id], onDelete: Restrict)
   organization   Organization?      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   messages       Message[]
 
-  @@unique([bloodRequestId, donorId])
+  @@unique([bloodRequestId, donorUserId])
   @@unique([bloodRequestId, organizationId])
   @@index([bloodRequestId, status])
 }
@@ -352,16 +352,16 @@ model Message {
 
 model DonationRecord {
   id                String       @id @default(uuid()) @db.Uuid
-  donorId           String       @db.Uuid
+  donorUserId       String       @db.Uuid
   bloodRequestId    String       @db.Uuid
   confirmedAt       DateTime     @db.Timestamptz(6)
   confirmedByUserId String       @db.Uuid
   createdAt         DateTime     @default(now()) @db.Timestamptz(6)
-  donor             DonorProfile @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  donor             User         @relation("DonationDonor", fields: [donorUserId], references: [id], onDelete: Restrict)
   bloodRequest      BloodRequest @relation(fields: [bloodRequestId], references: [id], onDelete: Restrict)
   confirmedBy       User         @relation(fields: [confirmedByUserId], references: [id], onDelete: Restrict)
 
-  @@index([donorId, confirmedAt])
+  @@index([donorUserId, confirmedAt])
   @@index([bloodRequestId])
 }
 

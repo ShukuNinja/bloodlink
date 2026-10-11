@@ -69,6 +69,8 @@ describe('authentication endpoints', () => {
       id: user.id,
       email: 'test.user@example.com',
       status: 'ACTIVE',
+      role: 'INDIVIDUAL',
+      organizations: [],
     });
     assert.equal(Object.hasOwn(body.data.user, 'passwordHash'), false);
     assert.notEqual(user.passwordHash, 'a-safe-test-password');
@@ -99,6 +101,78 @@ describe('authentication endpoints', () => {
         message: 'Conflict',
       },
     });
+  });
+
+  it('registers a hospital and creates its administrator membership atomically', async () => {
+    const response = await post('/auth/register', {
+      email: 'hospital@example.com',
+      password: 'a-safe-test-password',
+      accountType: 'HOSPITAL',
+      organizationName: 'City Hospital',
+      location: { latitude: 12.9716, longitude: 77.5946 },
+    });
+    const body = (await response.json()).data;
+    const user = store.users.find(
+      (candidate) => candidate.email === 'hospital@example.com',
+    );
+    const organization = store.organizations.find(
+      (candidate) => candidate.name === 'City Hospital',
+    );
+
+    assert.equal(response.status, 201);
+    assert.equal(user.role, 'INDIVIDUAL');
+    assert.deepEqual(body.user.organizations, [
+      {
+        id: organization.id,
+        name: 'City Hospital',
+        type: 'HOSPITAL',
+        role: 'HOSPITAL_ADMIN',
+      },
+    ]);
+    assert.equal(store.memberships[0].userId, user.id);
+    assert.deepEqual(organization.location, {
+      latitude: 12.9716,
+      longitude: 77.5946,
+    });
+  });
+
+  it('allows an explicitly selected Admin account at registration', async () => {
+    const response = await post('/auth/register', {
+      email: 'admin-self-register@example.com',
+      password: 'a-safe-test-password',
+      accountType: 'ADMIN',
+    });
+    const body = (await response.json()).data;
+
+    assert.equal(response.status, 201);
+    assert.equal(body.user.role, 'ADMIN');
+    assert.deepEqual(body.user.organizations, []);
+  });
+
+  it('requires an organization name for hospital and blood bank registration', async () => {
+    for (const accountType of ['HOSPITAL', 'BLOOD_CENTRE']) {
+      const response = await post('/auth/register', {
+        email: `${accountType.toLowerCase()}-missing-name@example.com`,
+        password: 'a-safe-test-password',
+        accountType,
+      });
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error.code, 'VALIDATION_ERROR');
+    }
+  });
+
+  it('requires valid coordinates for organization registration', async () => {
+    for (const location of [undefined, { latitude: 91, longitude: 0 }]) {
+      const response = await post('/auth/register', {
+        email: `organization-location-${randomUUID()}@example.com`,
+        password: 'a-safe-test-password',
+        accountType: 'BLOOD_CENTRE',
+        organizationName: 'North Blood Centre',
+        ...(location ? { location } : {}),
+      });
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error.code, 'VALIDATION_ERROR');
+    }
   });
 
   it('uses one generic response for unknown email and incorrect password', async () => {
@@ -153,6 +227,8 @@ describe('authentication endpoints', () => {
       id: store.users[0].id,
       email: 'test.user@example.com',
       status: 'ACTIVE',
+      role: 'INDIVIDUAL',
+      organizations: [],
     });
   });
 
@@ -377,13 +453,15 @@ describe('authorization primitives', () => {
       ),
       true,
     );
-    const membership = store.memberships[0];
+    const membership = store.memberships.find(
+      (item) =>
+        item.userId === user.id && item.organizationId === organizationId,
+    );
+    assert.ok(membership);
     for (const status of ['SUSPENDED', 'REVOKED']) {
       membership.status = status;
       await assert.rejects(
-        guard.canActivate(
-          makeContext({ user, params: { organizationId } }),
-        ),
+        guard.canActivate(makeContext({ user, params: { organizationId } })),
         (error) =>
           error instanceof ForbiddenException && error.getStatus() === 403,
       );
@@ -510,6 +588,31 @@ function MemoryAuthStore() {
   };
 
   this.organizationMembership = {
+    findMany: async ({ where }) =>
+      this.memberships
+        .filter((item) => {
+          const org = this.organizations.find(
+            (organization) => organization.id === item.organizationId,
+          );
+          return (
+            item.userId === where.userId &&
+            item.status === where.status &&
+            org?.status === where.organization.status
+          );
+        })
+        .map((item) => {
+          const organization = this.organizations.find(
+            (org) => org.id === item.organizationId,
+          );
+          return {
+            role: item.role,
+            organization: {
+              id: organization.id,
+              name: organization.name,
+              type: organization.type,
+            },
+          };
+        }),
     findFirst: async ({ where, include, select }) => {
       const member = this.memberships.find((item) => {
         const org = this.organizations.find(
@@ -538,6 +641,46 @@ function MemoryAuthStore() {
       }
       return member;
     },
+  };
+
+  this.organization = {
+    create: async ({ data }) => {
+      const organization = {
+        id: randomUUID(),
+        status: 'ACTIVE',
+        ...data,
+      };
+      this.organizations.push(organization);
+      return organization;
+    },
+  };
+
+  this.$executeRaw = async (
+    _query,
+    organizationId,
+    name,
+    type,
+    longitude,
+    latitude,
+  ) => {
+    this.organizations.push({
+      id: organizationId,
+      name,
+      type,
+      status: 'ACTIVE',
+      location: { latitude, longitude },
+    });
+    return 1;
+  };
+
+  this.organizationMembership.create = async ({ data }) => {
+    const membership = {
+      id: randomUUID(),
+      status: 'ACTIVE',
+      ...data,
+    };
+    this.memberships.push(membership);
+    return membership;
   };
 
   this.verifyConnection = async () => {};

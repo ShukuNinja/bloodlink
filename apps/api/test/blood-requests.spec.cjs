@@ -10,8 +10,8 @@
  * responder select/standby/release, fulfillment start/confirm.
  * INPUT: Authenticated HTTP requests against the compiled Nest application.
  * OUTPUT: Verified membership scoping, review transitions, transactional
- * single-BloodRequest creation, lifecycle gates, assignment rules, and the
- * D4 read-only boundary.
+ * single-BloodRequest creation, lifecycle gates, assignment rules, selected
+ * donor DonationRecord creation, and the D4 response boundary.
  * AUTHORIZATION: Authenticated HOSPITAL_ADMIN/HOSPITAL_STAFF with an ACTIVE
  * membership in an ACTIVE HOSPITAL; ownership enforced server-side.
  * DEPENDENCIES: AppModule, PrismaService override backed by an in-memory
@@ -644,9 +644,63 @@ describe('D3 responder assignment boundary', () => {
       ),
     );
   });
+
+  it('shows blood-centre identity while keeping donor responses anonymous', async () => {
+    const { requestId, donorResponseId, organizationResponseId } =
+      await verifyRequestWithAcceptedResponses(cityHospitalId, {
+        donor: 'ACCEPTED',
+        organization: 'ACCEPTED',
+      });
+    const response = await authed(
+      hannaToken,
+      `/blood-requests/${requestId}/responses`,
+    );
+    const body = await response.json();
+    const donor = body.data.find((item) => item.responseId === donorResponseId);
+    const centre = body.data.find(
+      (item) => item.responseId === organizationResponseId,
+    );
+
+    assert.equal(donor.status, 'ACCEPTED');
+    assert.equal(Object.hasOwn(donor, 'responderName'), false);
+    assert.equal(centre.status, 'ACCEPTED');
+    assert.equal(centre.responderName, 'River Blood Centre');
+  });
+
+  it('keeps selected individual donors anonymous', async () => {
+    const { requestId, donorResponseId } =
+      await verifyRequestWithSelectedResponder(cityHospitalId);
+    const response = await authed(
+      hannaToken,
+      `/blood-requests/${requestId}/responses`,
+    );
+    const body = await response.json();
+    const donor = body.data.find((item) => item.responseId === donorResponseId);
+
+    assert.equal(donor.status, 'ACCEPTED');
+    assert.equal(Object.hasOwn(donor, 'responderName'), false);
+  });
 });
 
 describe('D3 fulfillment boundary', () => {
+  it('does not start fulfillment after the selected responder withdraws', async () => {
+    const { requestId, donorResponseId } =
+      await verifyRequestWithSelectedResponder(cityHospitalId);
+    store.donorResponses.find((row) => row.id === donorResponseId).status =
+      'WITHDRAWN';
+
+    const response = await post(
+      `/blood-requests/${requestId}/fulfillment/start`,
+      hannaToken,
+    );
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).error.message, 'Conflict');
+    assert.equal(
+      store.bloodRequests.find((request) => request.id === requestId).status,
+      'COVERED',
+    );
+  });
+
   it('starts fulfillment only from an allowed lifecycle state', async () => {
     const { requestId } =
       await verifyRequestWithSelectedResponder(cityHospitalId);
@@ -681,6 +735,12 @@ describe('D3 fulfillment boundary', () => {
     );
     assert.equal(response.status, 200);
     assert.equal((await response.json()).data.status, 'FULFILLMENT_CONFIRMED');
+    assert.equal(store.donationRecords.length, 1);
+    assert.equal(store.donationRecords[0].bloodRequestId, requestId);
+    assert.equal(
+      store.donationRecords[0].confirmedByUserId,
+      store.users.find((user) => user.email === 'hanna@city.example.com').id,
+    );
   });
 
   it('does not transition a fulfilled request backward', async () => {
@@ -799,7 +859,7 @@ function seedDonorResponse(bloodRequestId, status) {
   const row = {
     id: randomUUID(),
     bloodRequestId,
-    donorId: randomUUID(),
+    userId: randomUUID(),
     status,
     respondedAt: new Date(),
     confirmedAt: null,
@@ -882,6 +942,7 @@ function MemoryD3Store() {
   this.responderAssignments = [];
   this.donorResponses = [];
   this.organizationResponses = [];
+  this.donationRecords = [];
 
   const matchesValue = (actual, expected) => {
     if (expected !== null && typeof expected === 'object') {
@@ -1076,6 +1137,10 @@ function MemoryD3Store() {
       const row = collection.find((response) => matches(response, where));
       return row ? { ...row } : null;
     },
+    findUnique: async ({ where }) => {
+      const row = collection.find((response) => response.id === where.id);
+      return row ? { ...row } : null;
+    },
     findMany: async ({ where, orderBy = [] }) =>
       sortRows(
         collection.filter((response) => matches(response, where)),
@@ -1085,7 +1150,30 @@ function MemoryD3Store() {
       collection.filter((response) => matches(response, where)).length,
   });
   this.donorResponse = responseDelegate(this.donorResponses);
-  this.organizationResponse = responseDelegate(this.organizationResponses);
+  this.organizationResponse = {
+    ...responseDelegate(this.organizationResponses),
+    findMany: async (args) =>
+      responseDelegate(this.organizationResponses)
+        .findMany(args)
+        .then((rows) =>
+          rows.map((row) => ({
+            ...row,
+            organization: this.organizations.find(
+              (organization) => organization.id === row.organizationId,
+            ),
+          })),
+        ),
+  };
+
+  this.donationRecord = {
+    count: async ({ where }) =>
+      this.donationRecords.filter((record) => matches(record, where)).length,
+    create: async ({ data }) => {
+      const record = { id: randomUUID(), createdAt: new Date(), ...data };
+      this.donationRecords.push(record);
+      return record;
+    },
+  };
 
   this.organization = {
     findUnique: async ({ where }) => {
@@ -1188,8 +1276,15 @@ function MemoryD3Store() {
       patientNeed: patientNeedDelegate,
       bloodRequest: bloodRequestDelegate,
       responderAssignment: responderAssignmentDelegate,
+      donorResponse: this.donorResponse,
+      organizationResponse: this.organizationResponse,
+      donationRecord: this.donationRecord,
       organization: this.organization,
       user: this.user,
+      $executeRaw: async (strings) => {
+        const sql = strings.join('');
+        throw new Error(`Unexpected auth raw SQL: ${sql}`);
+      },
     });
   };
 
