@@ -3,6 +3,7 @@ import type {
   ResponderAssignmentResponse,
   ResponderResponseListResponse,
 } from '@bloodlink/contracts';
+import { apiRequest } from '@/api/client';
 
 /**
  * OWNER: D3
@@ -11,10 +12,9 @@ import type {
  * INPUT: BloodRequest ID, response ID, and response type.
  * OUTPUT: Shared D4 references and D3 assignment envelope.
  * AUTHORIZATION: Active membership in the BloodRequest hospital.
- * DEPENDENCIES: Shared contracts, D3 API, future D4 response integration.
+ * DEPENDENCIES: Shared contracts and shared API client.
  * STATE CHANGES: D3 assignment state only.
  * NON-RESPONSIBILITIES: D4 response lifecycle, matching, notifications, UI behavior.
- * IMPLEMENTATION: TODO(D3).
  */
 export type ResponderCoordinationApi = {
   listResponses(id: string): Promise<ResponderResponseListResponse>;
@@ -33,4 +33,37 @@ export type ResponderCoordinationApi = {
     responseId: string,
     input: AssignResponderRequest,
   ): Promise<ResponderAssignmentResponse>;
+};
+
+export const responderCoordinationApi: ResponderCoordinationApi = {
+  listResponses(id) {
+    return apiRequest<ResponderResponseListResponse>(
+      'GET',
+      `/blood-requests/${id}/responses`,
+    );
+  },
+
+  select(id, responseId, input) {
+    return apiRequest<ResponderAssignmentResponse>(
+      'POST',
+      `/blood-requests/${id}/responders/${responseId}/select`,
+      { body: input },
+    );
+  },
+
+  standby(id, responseId, input) {
+    return apiRequest<ResponderAssignmentResponse>(
+      'POST',
+      `/blood-requests/${id}/responders/${responseId}/standby`,
+      { body: input },
+    );
+  },
+
+  release(id, responseId, input) {
+    return apiRequest<ResponderAssignmentResponse>(
+      'POST',
+      `/blood-requests/${id}/responders/${responseId}/release`,
+      { body: input },
+    );
+  },
 };

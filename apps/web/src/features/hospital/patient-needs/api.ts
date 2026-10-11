@@ -5,6 +5,7 @@ import type {
   RejectPatientNeedResponse,
   VerifyPatientNeedResponse,
 } from '@bloodlink/contracts';
+import { apiRequest } from '@/api/client';
 
 /**
  * OWNER: D3
@@ -13,10 +14,9 @@ import type {
  * INPUT: Shared query and PatientNeed ID.
  * OUTPUT: Shared review/action response envelopes.
  * AUTHORIZATION: Hospital member; API verifies active membership for the target hospital.
- * DEPENDENCIES: Shared contracts and future shared API client.
+ * DEPENDENCIES: Shared contracts and shared API client.
  * STATE CHANGES: Verification/rejection only.
  * NON-RESPONSIBILITIES: D2 creation/cancellation, BloodRequest implementation, UI behavior.
- * IMPLEMENTATION: TODO(D3).
  */
 export type HospitalPatientNeedApi = {
   list(
@@ -25,4 +25,41 @@ export type HospitalPatientNeedApi = {
   get(id: string): Promise<HospitalPatientNeedResponse>;
   verify(id: string): Promise<VerifyPatientNeedResponse>;
   reject(id: string): Promise<RejectPatientNeedResponse>;
+};
+
+export const hospitalPatientNeedApi: HospitalPatientNeedApi = {
+  list(query) {
+    return apiRequest<HospitalPatientNeedListResponse>(
+      'GET',
+      '/hospital/patient-needs',
+      {
+        query: {
+          status: query?.status,
+          page: query?.page,
+          pageSize: query?.pageSize,
+        },
+      },
+    );
+  },
+
+  get(id) {
+    return apiRequest<HospitalPatientNeedResponse>(
+      'GET',
+      `/hospital/patient-needs/${id}`,
+    );
+  },
+
+  verify(id) {
+    return apiRequest<VerifyPatientNeedResponse>(
+      'POST',
+      `/hospital/patient-needs/${id}/verify`,
+    );
+  },
+
+  reject(id) {
+    return apiRequest<RejectPatientNeedResponse>(
+      'POST',
+      `/hospital/patient-needs/${id}/reject`,
+    );
+  },
 };
