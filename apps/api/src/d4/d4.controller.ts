@@ -7,7 +7,6 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
-  Patch,
   Post,
   Query,
   UseGuards,
@@ -16,13 +15,11 @@ import type {
   BloodRequestListQuery,
   CreateMessageRequest,
   DonorBloodRequestQuery,
-  DonorProfileUpdate,
 } from '@bloodlink/contracts';
 import {
   createMessageSchema,
   donorAcceptSchema,
   donorBloodRequestQuerySchema,
-  donorProfileUpdateSchema,
   donorWithdrawSchema,
   bloodRequestListQuerySchema,
   hospitalSubscriptionSchema,
@@ -52,23 +49,14 @@ import { D4ScaffoldService } from './d4-scaffold.service';
 export class D4Controller {
   constructor(private readonly d4: D4ScaffoldService) {}
 
-  /** OWNER: D4 | ENDPOINT: GET /donor-profile | PURPOSE: Read own profile. | INPUT: Authenticated user. | OUTPUT: DonorProfile. | AUTHORIZATION: INDIVIDUAL owner. | DEPENDENCIES: D4 profile service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Exposing coordinates or medical eligibility.. */
-  @Get('donor-profile') @Roles('INDIVIDUAL') getProfile(
-    @CurrentUser() user: AuthenticatedPrincipal,
-  ) {
-    return this.d4.getDonorProfile(user.id);
+  /** OWNER: D4 | ENDPOINT: GET /notifications | PURPOSE: List current in-app blood request alerts. | INPUT: Authenticated Individual. | OUTPUT: Existing request summaries and match/subscription source. | AUTHORIZATION: INDIVIDUAL. | DEPENDENCIES: Matching, donor preferences, and subscriptions. | STATE CHANGES: None; no event history is stored. | NON-RESPONSIBILITIES: Push/email/SMS delivery or medical eligibility. */
+  @Get('notifications')
+  @Roles('INDIVIDUAL')
+  listNotifications(@CurrentUser() user: AuthenticatedPrincipal) {
+    return this.d4.listNotifications(user.id);
   }
 
-  /** OWNER: D4 | ENDPOINT: PATCH /donor-profile | PURPOSE: Update own coordination profile. | INPUT: Shared profile update schema. | OUTPUT: DonorProfile. | AUTHORIZATION: INDIVIDUAL owner. | DEPENDENCIES: D4 profile service and validation. | STATE CHANGES: D4 records only. | NON-RESPONSIBILITIES: Medical eligibility decisions.. */
-  @Patch('donor-profile') @Roles('INDIVIDUAL') updateProfile(
-    @CurrentUser() user: AuthenticatedPrincipal,
-    @Body(new ZodValidationPipe(donorProfileUpdateSchema))
-    input: DonorProfileUpdate,
-  ) {
-    return this.d4.updateDonorProfile(user.id, input);
-  }
-
-  /** OWNER: D4 | ENDPOINT: GET /donor/blood-requests | PURPOSE: List requests available to the donor. | INPUT: Donor query. | OUTPUT: Donor request list. | AUTHORIZATION: INDIVIDUAL with active donor profile. | DEPENDENCIES: Matching boundary and D4 service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Candidate matching implementation.. */
+  /** OWNER: D4 | ENDPOINT: GET /donor/blood-requests | PURPOSE: List all open requests. | INPUT: Donor query. | OUTPUT: Donor request list. | AUTHORIZATION: INDIVIDUAL account; donor preferences are not collected. | DEPENDENCIES: Matching boundary and D4 service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Hospital suitability verification.. */
   @Get('donor/blood-requests') @Roles('INDIVIDUAL') listDonorRequests(
     @CurrentUser() user: AuthenticatedPrincipal,
     @Query(new ZodValidationPipe(donorBloodRequestQuerySchema))
@@ -77,7 +65,14 @@ export class D4Controller {
     return this.d4.listDonorRequests(user.id, query);
   }
 
-  /** OWNER: D4 | ENDPOINT: GET /donor/blood-requests/:id | PURPOSE: Read one request offered to the donor. | INPUT: Request ID. | OUTPUT: Donor request detail. | AUTHORIZATION: INDIVIDUAL with active donor profile. | DEPENDENCIES: D4 service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Donor location disclosure.. */
+  /** OWNER: D4 | ENDPOINT: GET /donor/responses | PURPOSE: List the caller's donor response states. | INPUT: Authenticated Individual. | OUTPUT: Own DonorResponse records. | AUTHORIZATION: INDIVIDUAL profile owner. | DEPENDENCIES: D4 response service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Other donors' responses or precise location. */
+  @Get('donor/responses') @Roles('INDIVIDUAL') listDonorResponses(
+    @CurrentUser() user: AuthenticatedPrincipal,
+  ) {
+    return this.d4.listDonorResponses(user.id);
+  }
+
+  /** OWNER: D4 | ENDPOINT: GET /donor/blood-requests/:id | PURPOSE: Read one open request. | INPUT: Request ID. | OUTPUT: Donor request detail. | AUTHORIZATION: INDIVIDUAL account. | DEPENDENCIES: D4 service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Donor location disclosure.. */
   @Get('donor/blood-requests/:id') @Roles('INDIVIDUAL') getDonorRequest(
     @CurrentUser() user: AuthenticatedPrincipal,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -130,6 +125,13 @@ export class D4Controller {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.d4.getBloodCentreRequest(user.id, id);
+  }
+
+  /** OWNER: D4 | ENDPOINT: GET /blood-centre/responses | PURPOSE: List response states for the caller's active blood-centre memberships. | INPUT: Authenticated blood-centre member. | OUTPUT: Own OrganizationResponse records. | AUTHORIZATION: Active membership is checked in the service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Other organizations' responses or D3 assignment state. */
+  @Get('blood-centre/responses')
+  @Roles('BLOOD_CENTRE_ADMIN', 'BLOOD_CENTRE_STAFF')
+  listOrganizationResponses(@CurrentUser() user: AuthenticatedPrincipal) {
+    return this.d4.listOrganizationResponses(user.id);
   }
 
   /** OWNER: D4 | ENDPOINT: POST /blood-requests/:id/organization-response | PURPOSE: Create/update blood-centre response. | INPUT: Request ID and empty structural action. | OUTPUT: OrganizationResponse. | AUTHORIZATION: ACTIVE membership in an ACTIVE BLOOD_CENTRE organization, verified server-side. | DEPENDENCIES: D4 response service. | STATE CHANGES: D4 response rows only. | NON-RESPONSIBILITIES: BloodRequest or assignment mutation.. */

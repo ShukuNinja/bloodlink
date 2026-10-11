@@ -12,6 +12,7 @@ import type { ApiErrorCode } from '@bloodlink/contracts';
 
 export const API_BASE_URL = '/api/v1';
 const ACCESS_TOKEN_STORAGE_KEY = 'bloodlink.accessToken';
+const REFRESH_TOKEN_STORAGE_KEY = 'bloodlink.refreshToken';
 
 export type ApiClientErrorCode = ApiErrorCode | 'NETWORK_ERROR' | 'MALFORMED';
 
@@ -40,17 +41,42 @@ export class ApiClientError extends Error {
 
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+  return window.sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
 }
 
 export function setAccessToken(token: string): void {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+  window.sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
 }
 
 export function clearAccessToken(): void {
   if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  window.sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+}
+
+export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.sessionStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+}
+
+export function setSessionTokens(
+  accessToken: string,
+  refreshToken: string,
+): void {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
+  window.sessionStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+}
+
+export function clearSessionTokens(): void {
+  clearAccessToken();
+}
+
+function notifySessionExpired(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('bloodlink:session-expired'));
+  }
 }
 
 export function hasAccessToken(): boolean {
@@ -62,6 +88,8 @@ type QueryValue = string | number | boolean | undefined;
 export interface ApiRequestOptions {
   body?: unknown;
   query?: Record<string, QueryValue>;
+  /** Skip the one-time refresh retry for auth lifecycle endpoints. */
+  skipRefresh?: boolean;
 }
 
 export function buildApiUrl(
@@ -84,14 +112,38 @@ export async function apiRequest<TEnvelope>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<TEnvelope> {
+  const response = await sendRequest(method, path, options);
+  if (
+    response.status === 401 &&
+    !options.skipRefresh &&
+    ![
+      '/auth/login',
+      '/auth/register',
+      '/auth/refresh',
+      '/auth/logout',
+    ].includes(path)
+  ) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      const retry = await sendRequest(method, path, options);
+      return unwrapResponse<TEnvelope>(retry);
+    }
+  }
+  return unwrapResponse<TEnvelope>(response);
+}
+
+async function sendRequest(
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  path: string,
+  options: ApiRequestOptions,
+): Promise<Response> {
   const headers: Record<string, string> = {};
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
-  let response: Response;
   try {
-    response = await fetch(buildApiUrl(path, options.query), {
+    return await fetch(buildApiUrl(path, options.query), {
       method,
       headers,
       body:
@@ -104,13 +156,81 @@ export async function apiRequest<TEnvelope>(
       'Unable to reach the BloodLink API. Check your connection.',
     );
   }
+}
 
-  const parsed = await parseBody(response);
+function unwrapResponse<TEnvelope>(response: Response): Promise<TEnvelope> {
+  return parseBody(response).then((parsed) => {
+    if (!response.ok) throw errorFromResponse(response.status, parsed);
+    return parsed as TEnvelope;
+  });
+}
 
-  if (!response.ok) {
-    throw errorFromResponse(response.status, parsed);
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    if (getAccessToken()) {
+      clearSessionTokens();
+      notifySessionExpired();
+    }
+    return false;
   }
-  return parsed as TEnvelope;
+
+  refreshInFlight = (async () => {
+    let response: Response;
+    try {
+      response = await fetch(buildApiUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {
+      throw new ApiClientError(
+        0,
+        'NETWORK_ERROR',
+        'Unable to refresh your session. Check your connection and retry.',
+      );
+    }
+
+    const parsed = await parseBody(response);
+    if (!response.ok) {
+      if (response.status === 401 && getRefreshToken() === refreshToken) {
+        clearSessionTokens();
+        notifySessionExpired();
+      }
+      if (response.status === 401) return false;
+      throw errorFromResponse(response.status, parsed);
+    }
+
+    const authResponse = (
+      parsed as
+        | {
+            data?: {
+              accessToken?: unknown;
+              refreshToken?: unknown;
+            };
+          }
+        | undefined
+    )?.data;
+    if (
+      typeof authResponse?.accessToken !== 'string' ||
+      typeof authResponse.refreshToken !== 'string'
+    ) {
+      throw new ApiClientError(
+        response.status,
+        'MALFORMED',
+        'The API returned an invalid session response.',
+      );
+    }
+    setSessionTokens(authResponse.accessToken, authResponse.refreshToken);
+    return true;
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
 }
 
 async function parseBody(response: Response): Promise<unknown> {

@@ -1,4 +1,6 @@
 import type {
+  HospitalSubscriptionListResponse,
+  HospitalSubscriptionResponse,
   HospitalSearchRequest,
   HospitalSearchResponse,
 } from '@bloodlink/contracts';
@@ -27,5 +29,27 @@ export const hospitalDiscoveryApi: HospitalDiscoveryApi = {
         query: input.query,
       },
     });
+  },
+};
+
+export const hospitalSubscriptionApi = {
+  list() {
+    return apiRequest<HospitalSubscriptionListResponse>(
+      'GET',
+      '/hospital-subscriptions',
+    );
+  },
+  subscribe(hospitalId: string) {
+    return apiRequest<HospitalSubscriptionResponse>(
+      'POST',
+      `/hospitals/${encodeURIComponent(hospitalId)}/subscription`,
+      { body: {} },
+    );
+  },
+  unsubscribe(hospitalId: string) {
+    return apiRequest<void>(
+      'DELETE',
+      `/hospitals/${encodeURIComponent(hospitalId)}/subscription`,
+    );
   },
 };

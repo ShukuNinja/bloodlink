@@ -35,7 +35,6 @@ type UserRecord = {
 
 type RefreshClaims = { sub?: unknown; jti?: unknown };
 type TokenStore = Pick<PrismaService, 'refreshToken'>;
-
 @Injectable()
 export class AuthService {
   constructor(
@@ -46,6 +45,9 @@ export class AuthService {
 
   async register(input: RegisterInput): Promise<AuthResponse> {
     const email = normalizeEmail(input.email);
+    const accountType = input.accountType ?? 'INDIVIDUAL';
+    const isOrganization =
+      accountType === 'HOSPITAL' || accountType === 'BLOOD_CENTRE';
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException('An account with this email already exists');
@@ -54,8 +56,45 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
     let user: UserRecord;
     try {
-      user = await this.prisma.user.create({
-        data: { email, passwordHash, role: 'INDIVIDUAL' },
+      user = await this.prisma.$transaction(async (transaction) => {
+        const createdUser = await transaction.user.create({
+          data: {
+            email,
+            passwordHash,
+            role: accountType === 'ADMIN' ? 'ADMIN' : 'INDIVIDUAL',
+          },
+        });
+        if (isOrganization) {
+          const { latitude, longitude } = input.location!;
+          const organizationId = randomUUID();
+          await transaction.$executeRaw`
+            INSERT INTO "Organization"
+              ("id", "name", "type", "location", "createdAt", "updatedAt")
+            VALUES (
+              ${organizationId}::uuid,
+              ${input.organizationName!},
+              ${accountType}::"OrganizationType",
+              ST_SetSRID(
+                ST_MakePoint(${longitude}, ${latitude}),
+                4326
+              )::geography,
+              NOW(),
+              NOW()
+            )
+          `;
+          await transaction.organizationMembership.create({
+            data: {
+              userId: createdUser.id,
+              organizationId,
+              role:
+                accountType === 'HOSPITAL'
+                  ? 'HOSPITAL_ADMIN'
+                  : 'BLOOD_CENTRE_ADMIN',
+            },
+          });
+        }
+
+        return createdUser;
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -211,8 +250,32 @@ export class AuthService {
     return membership;
   }
 
-  toAuthUser(user: Pick<UserRecord, 'id' | 'email' | 'status'>): AuthUser {
-    return { id: user.id, email: user.email, status: user.status };
+  async toAuthUser(
+    user: Pick<UserRecord, 'id' | 'email' | 'status' | 'role'>,
+  ): Promise<AuthUser> {
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: {
+        userId: user.id,
+        status: 'ACTIVE',
+        organization: { status: 'ACTIVE' },
+      },
+      select: {
+        role: true,
+        organization: {
+          select: { id: true, name: true, type: true },
+        },
+      },
+    });
+    return {
+      id: user.id,
+      email: user.email,
+      status: user.status,
+      role: user.role,
+      organizations: memberships.map(({ role, organization }) => ({
+        ...organization,
+        role,
+      })),
+    };
   }
 
   private async getActiveRefreshToken(refreshToken: string) {
@@ -257,23 +320,26 @@ export class AuthService {
     user: UserRecord,
     tokenStore: TokenStore = this.prisma,
   ): Promise<AuthResponse> {
+    const accessExpiresIn = this.config.getOrThrow<string>(
+      'JWT_ACCESS_EXPIRES_IN',
+    );
+    const accessOptions = {
+      secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      expiresIn: accessExpiresIn,
+    } as unknown as JwtSignOptions;
     const accessToken = await this.jwt.signAsync(
       { sub: user.id },
-      {
-        secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        expiresIn: this.config.getOrThrow<JwtSignOptions['expiresIn']>(
-          'JWT_ACCESS_EXPIRES_IN',
-        ),
-      },
+      accessOptions,
     );
     const tokenId = randomUUID();
     const expiresIn = this.config.getOrThrow<string>('JWT_REFRESH_EXPIRES_IN');
+    const refreshOptions = {
+      secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      expiresIn,
+    } as unknown as JwtSignOptions;
     const refreshToken = await this.jwt.signAsync(
       { sub: user.id, jti: tokenId },
-      {
-        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: expiresIn as JwtSignOptions['expiresIn'],
-      },
+      refreshOptions,
     );
 
     await tokenStore.refreshToken.create({
@@ -285,7 +351,7 @@ export class AuthService {
     });
 
     return {
-      user: this.toAuthUser(user),
+      user: await this.toAuthUser(user),
       accessToken,
       refreshToken,
       tokenType: 'Bearer',

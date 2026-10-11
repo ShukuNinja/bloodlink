@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { AuthSessionProvider } from './auth-session';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -13,14 +13,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <header className="nav">
-          <strong>BloodLink</strong>
-          <Link href="/hospitals">Find hospitals</Link>
-          <Link href="/patient-needs/new">New request</Link>
-          <Link href="/patient-needs">My requests</Link>
-          <Link href="/auth">Sign in</Link>
-        </header>
-        {children}
+        <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>
     </html>
   );

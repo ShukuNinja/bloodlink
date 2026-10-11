@@ -711,6 +711,7 @@ function MemoryD2Store() {
 
   this.organizationMembership = {
     findFirst: async () => null,
+    findMany: async () => [],
   };
 
   this.refreshToken = {
@@ -770,6 +771,10 @@ function MemoryD2Store() {
       patientNeed: patientNeedDelegate,
       organization: this.organization,
       user: this.user,
+      $executeRaw: async (strings) => {
+        const sql = strings.join('');
+        throw new Error(`Unexpected auth raw SQL: ${sql}`);
+      },
     });
   };
 

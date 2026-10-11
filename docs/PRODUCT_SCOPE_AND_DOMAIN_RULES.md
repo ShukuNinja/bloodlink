@@ -6,10 +6,10 @@ BloodLink connects individuals with hospitals and blood banks through consent-ba
 
 ## 2. Actors
 
-- **Individual user:** discovers hospitals, subscribes to selected hospitals to follow their posted blood requests, submits a PatientNeed handoff, and may participate in donation workflows where implemented.
+- **Individual user:** discovers hospitals, submits a PatientNeed handoff, and may volunteer for any open BloodRequest.
 - **Hospital organization:** reviews PatientNeed submissions, verifies or rejects them, and creates/manages official BloodRequests.
 - **Blood bank organization:** participates in supported organization response/coordination flows.
-- **Donor:** maintains a donor profile and may respond to eligible requests according to the implemented consent and availability rules.
+- **Volunteer/donor:** a capability of an Individual account, not a separate role or profile registration. The Individual accepts or withdraws a request; the Hospital reviews suitability, selects responders, and maintains its operational donor list.
 - **Administrator:** administrative capabilities only where the current implementation explicitly supports them.
 
 An individual’s PatientNeed is not an official BloodRequest. The hospital is responsible for the official review and request-creation step.
@@ -22,7 +22,7 @@ An individual’s PatientNeed is not an official BloodRequest. The hospital is r
 4. Individual creates and tracks PatientNeed submissions, including history and cancellation where supported.
 5. Hospital reviews a PatientNeed, verifies or rejects it, and creates the official BloodRequest.
 6. Hospital manages the official BloodRequest lifecycle and responder assignments within the approved contract.
-7. Donor profile, donor responses, organization responses, matching, subscriptions, notifications, and request-scoped communication only where supported by the current API contract.
+7. Individual request responses, organization responses, optional hospital subscriptions, in-app alerts, and request-scoped communication only where supported by the current API contract.
 8. Error, loading, empty, success, and permission-denied states across these journeys.
 
 ## 4. Explicit exclusions
@@ -62,7 +62,7 @@ Communication and coordination must remain consent-based. Where a workflow requi
 
 ## 6. Location and discovery
 
-- Canonical Organization/DonorProfile location is PostgreSQL PostGIS `GEOGRAPHY(POINT,4326)` with GiST indexes.
+- Canonical organization location is PostgreSQL PostGIS `GEOGRAPHY(POINT,4326)` with GiST indexes. Individual donor location is not required or collected.
 - Do not add duplicate persistent latitude/longitude columns or substitute Haversine calculations.
 - Hospital discovery should return eligible active HOSPITAL organizations with valid canonical locations.
 - The approved default discovery radius is 25,000 metres.

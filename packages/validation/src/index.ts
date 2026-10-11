@@ -13,6 +13,7 @@ import type {
   DonorBloodRequestQuery,
   CreateMessageRequest,
   CreatePushSubscriptionRequest,
+  AdminRecordListQuery,
 } from '@bloodlink/contracts';
 export { z, ZodError } from 'zod';
 export type { ZodIssue, ZodType } from 'zod';
@@ -27,10 +28,54 @@ export const passwordSchema = z
   .max(72)
   .refine((value) => new TextEncoder().encode(value).length <= 72);
 
-export const registerInputSchema: z.ZodType<RegisterInput> = z.strictObject({
-  email: emailSchema,
-  password: passwordSchema,
-});
+export const registerInputSchema: z.ZodType<RegisterInput> = z
+  .strictObject({
+    email: emailSchema,
+    password: passwordSchema,
+    accountType: z
+      .enum(['INDIVIDUAL', 'HOSPITAL', 'BLOOD_CENTRE', 'ADMIN'])
+      .optional(),
+    organizationName: z.string().trim().min(1).max(255).optional(),
+    location: z
+      .strictObject({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+      })
+      .optional(),
+  })
+  .superRefine((input, context) => {
+    const accountType = input.accountType ?? 'INDIVIDUAL';
+    const isOrganization =
+      accountType === 'HOSPITAL' || accountType === 'BLOOD_CENTRE';
+    if (isOrganization && !input.organizationName) {
+      context.addIssue({
+        code: 'custom',
+        path: ['organizationName'],
+        message: 'Organization name is required for this account type',
+      });
+    }
+    if (isOrganization && !input.location) {
+      context.addIssue({
+        code: 'custom',
+        path: ['location'],
+        message: 'Coordinates are required for organization accounts',
+      });
+    }
+    if (!isOrganization && input.organizationName !== undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['organizationName'],
+        message: 'Organization name is only valid for organization accounts',
+      });
+    }
+    if (!isOrganization && input.location !== undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['location'],
+        message: 'Coordinates are only valid for organization accounts',
+      });
+    }
+  });
 
 export const loginInputSchema: z.ZodType<LoginInput> = z.strictObject({
   email: emailSchema,
@@ -42,6 +87,12 @@ export const refreshInputSchema: z.ZodType<RefreshInput> = z.strictObject({
 });
 
 export const logoutInputSchema: z.ZodType<LogoutInput> = refreshInputSchema;
+
+export const adminRecordListQuerySchema: z.ZodType<AdminRecordListQuery> =
+  z.strictObject({
+    page: z.coerce.number().int().positive().optional(),
+    pageSize: z.coerce.number().int().positive().max(100).optional(),
+  });
 
 export const CreatePatientNeedSchema: z.ZodType<CreatePatientNeedRequest> =
   z.strictObject({

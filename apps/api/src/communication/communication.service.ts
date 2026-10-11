@@ -87,7 +87,7 @@ export class CommunicationService {
     bloodRequestId: string,
   ): Promise<
     | { kind: 'hospital' }
-    | { kind: 'donor'; donorId: string }
+    | { kind: 'donor'; donorUserId: string }
     | { kind: 'organization'; organizationId: string }
   > {
     const request = await this.prisma.bloodRequest.findUnique({
@@ -103,6 +103,21 @@ export class CommunicationService {
       select: { donorResponseId: true, organizationResponseId: true },
     });
     if (!selected) throw new NotFoundException('Conversation not found');
+
+    const selectedResponse = selected.donorResponseId
+      ? await this.prisma.donorResponse.findUnique({
+          where: { id: selected.donorResponseId },
+          select: { status: true },
+        })
+      : selected.organizationResponseId
+        ? await this.prisma.organizationResponse.findUnique({
+            where: { id: selected.organizationResponseId },
+            select: { status: true },
+          })
+        : null;
+    if (selectedResponse?.status !== 'ACCEPTED') {
+      throw new NotFoundException('Conversation not found');
+    }
 
     const hospitalMembership =
       await this.prisma.organizationMembership.findFirst({
@@ -120,16 +135,13 @@ export class CommunicationService {
     if (selected.donorResponseId) {
       const donorResponse = await this.prisma.donorResponse.findUnique({
         where: { id: selected.donorResponseId },
-        select: { donorId: true },
+        select: { userId: true, status: true },
       });
-      const profile = donorResponse
-        ? await this.prisma.donorProfile.findUnique({
-            where: { id: donorResponse.donorId },
-            select: { id: true, userId: true },
-          })
-        : null;
-      if (profile && profile.userId === userId) {
-        return { kind: 'donor', donorId: profile.id };
+      if (
+        donorResponse?.status === 'ACCEPTED' &&
+        donorResponse.userId === userId
+      ) {
+        return { kind: 'donor', donorUserId: userId };
       }
       throw new NotFoundException('Conversation not found');
     }
@@ -138,9 +150,9 @@ export class CommunicationService {
       const organizationResponse =
         await this.prisma.organizationResponse.findUnique({
           where: { id: selected.organizationResponseId },
-          select: { organizationId: true },
+          select: { organizationId: true, status: true },
         });
-      if (organizationResponse) {
+      if (organizationResponse?.status === 'ACCEPTED') {
         const membership = await this.prisma.organizationMembership.findFirst({
           where: {
             userId,
@@ -166,7 +178,7 @@ export class CommunicationService {
     bloodRequestId: string,
     participant:
       | { kind: 'hospital' }
-      | { kind: 'donor'; donorId: string }
+      | { kind: 'donor'; donorUserId: string }
       | { kind: 'organization'; organizationId: string },
   ) {
     // One shared thread per request: hospital and the selected responder
@@ -181,7 +193,7 @@ export class CommunicationService {
         bloodRequestId,
         status: 'OPEN',
         ...(participant.kind === 'donor'
-          ? { donorId: participant.donorId }
+          ? { donorUserId: participant.donorUserId }
           : {}),
         ...(participant.kind === 'organization'
           ? { organizationId: participant.organizationId }

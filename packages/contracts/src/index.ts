@@ -39,16 +39,25 @@ export type ResourceId = string;
 export type UserStatus = 'ACTIVE' | 'SUSPENDED';
 export type PlatformRole = 'INDIVIDUAL' | 'ADMIN';
 export type OrganizationType = 'HOSPITAL' | 'BLOOD_CENTRE';
+export type OrganizationStatus = 'ACTIVE' | 'SUSPENDED';
 export type OrganizationMembershipRole =
   | 'HOSPITAL_ADMIN'
   | 'HOSPITAL_STAFF'
   | 'BLOOD_CENTRE_ADMIN'
   | 'BLOOD_CENTRE_STAFF';
+export type OrganizationMembershipStatus = 'ACTIVE' | 'SUSPENDED' | 'REVOKED';
 
 export type AuthUser = {
   id: ResourceId;
   email: string;
   status: UserStatus;
+  role: PlatformRole;
+  organizations: Array<{
+    id: ResourceId;
+    name: string;
+    type: OrganizationType;
+    role: OrganizationMembershipRole;
+  }>;
 };
 
 export type AuthTokens = {
@@ -61,9 +70,77 @@ export type AuthResponse = {
   user: AuthUser;
 } & AuthTokens;
 
+export type AdminMetrics = {
+  generatedAt: ApiTimestamp;
+  accounts: {
+    total: number;
+    individuals: number;
+    admins: number;
+    active: number;
+    suspended: number;
+  };
+  organizations: {
+    total: number;
+    hospitals: number;
+    bloodCentres: number;
+    active: number;
+    suspended: number;
+  };
+  workflows: {
+    patientNeeds: number;
+    bloodRequests: number;
+    individualResponders: number;
+    donorResponses: number;
+    organizationResponses: number;
+    hospitalSubscriptions: number;
+    donationRecords: number;
+  };
+};
+export type AdminMetricsResponse = ApiSuccess<AdminMetrics>;
+export type AdminRecordListQuery = {
+  page?: number;
+  pageSize?: number;
+};
+export type AdminAccountView = {
+  id: ResourceId;
+  email: string;
+  role: PlatformRole;
+  status: UserStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+  organizations: Array<{
+    id: ResourceId;
+    name: string;
+    type: OrganizationType;
+    status: OrganizationStatus;
+    role: OrganizationMembershipRole;
+    membershipStatus: OrganizationMembershipStatus;
+  }>;
+};
+export type AdminOrganizationView = {
+  id: ResourceId;
+  name: string;
+  type: OrganizationType;
+  status: OrganizationStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+  memberCount: number;
+};
+export type AdminAccountListResponse = ApiSuccessWithMeta<
+  AdminAccountView[],
+  PaginationMeta
+>;
+export type AdminOrganizationListResponse = ApiSuccessWithMeta<
+  AdminOrganizationView[],
+  PaginationMeta
+>;
+
 export type RegisterInput = {
   email: string;
   password: string;
+  accountType?: 'INDIVIDUAL' | 'ADMIN' | 'HOSPITAL' | 'BLOOD_CENTRE';
+  organizationName?: string;
+  location?: { latitude: number; longitude: number };
 };
 
 export type LoginInput = RegisterInput;
@@ -176,6 +253,9 @@ export type ResponderResponseType = 'DONOR_RESPONSE' | 'ORGANIZATION_RESPONSE';
 export type ResponderResponseReference = {
   responseId: ResourceId;
   responseType: ResponderResponseType;
+  status?: CoordinationResponseStatus;
+  /** Organization name. Individual donor identities remain anonymous. */
+  responderName?: string;
 };
 
 export type ResponderAssignmentView = {
@@ -317,6 +397,7 @@ export type DonorResponse = {
   updatedAt: ApiTimestamp;
 };
 export type DonorResponseActionResponse = ApiSuccess<DonorResponse>;
+export type DonorResponseListResponse = ApiSuccess<DonorResponse[]>;
 
 export type OrganizationResponse = {
   id: ResourceId;
@@ -330,6 +411,9 @@ export type OrganizationResponse = {
 };
 export type OrganizationResponseActionResponse =
   ApiSuccess<OrganizationResponse>;
+export type OrganizationResponseListResponse = ApiSuccess<
+  OrganizationResponse[]
+>;
 
 export type HospitalSubscription = {
   id: ResourceId;
@@ -360,6 +444,22 @@ export type NotificationBoundary = {
   title: string;
   body: string;
 };
+
+/** Current request alert derived from existing matching/subscription records; no event history is stored. */
+export type InAppNotification = {
+  bloodRequestId: ResourceId;
+  hospitalName: string;
+  bloodGroup: PatientNeedBloodGroup;
+  component: PatientNeedComponent;
+  unitsRequired: number;
+  title: string;
+  body: string;
+  urgency: PatientNeedUrgency;
+  requiredBy: ApiTimestamp;
+  requestStatus: BloodRequestStatus;
+  source: 'NEARBY_MATCH' | 'HOSPITAL_SUBSCRIPTION' | 'BOTH';
+};
+export type InAppNotificationListResponse = ApiSuccess<InAppNotification[]>;
 
 export type Conversation = {
   id: ResourceId;

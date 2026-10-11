@@ -158,7 +158,9 @@ after(async () => {
   await app?.close();
 });
 
-describe('D4 donor profile', () => {
+// The old preference/profile workflow was removed after product clarification.
+// Direct Individual response behavior is covered by donor-responses.spec.cjs.
+describe.skip('D4 legacy donor profile preferences', () => {
   it('requires authenticated owner access', async () => {
     // Unauthenticated requests keep the canonical 401 envelope.
     assert.equal((await fetch(`${baseUrl}/api/v1/donor-profile`)).status, 401);
@@ -280,6 +282,20 @@ describe('D4 donor profile', () => {
 });
 
 describe('D4 donor responses', () => {
+  it('allows any Individual to accept without preferences or donor profiles', async () => {
+    const requestId = seedRequest(cityHospitalId, { bloodGroup: 'A_POSITIVE' });
+    const response = await post(
+      `/blood-requests/${requestId}/accept`,
+      zoeToken,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(
+      store.donorResponses.filter((row) => row.bloodRequestId === requestId)
+        .length,
+      1,
+    );
+  });
+
   it('records acceptance only after explicit confirmation', async () => {
     const requestId = seedRequest(cityHospitalId, { bloodGroup: 'A_POSITIVE' });
     const response = await post(
@@ -298,10 +314,10 @@ describe('D4 donor responses', () => {
         .length,
       1,
     );
-    // Donors without a profile cannot accept anything.
+    // A second Individual can also volunteer for the same request.
     assert.equal(
       (await post(`/blood-requests/${requestId}/accept`, zoeToken)).status,
-      404,
+      200,
     );
   });
 
@@ -396,7 +412,7 @@ describe('D4 donor responses', () => {
     );
     const rows = store.donorResponses.filter(
       (row) =>
-        row.donorId === donorProfileId('dora@donor.example.com') &&
+        row.userId === userIdByEmail('dora@donor.example.com') &&
         [firstId, secondId].includes(row.bloodRequestId),
     );
     assert.equal(rows.length, 2);
@@ -690,7 +706,9 @@ describe('D4 organization responses', () => {
   });
 });
 
-describe('D4 matching and PostGIS', () => {
+// Donor-radius and blood-group matching is intentionally not used: hospitals
+// verify volunteers after Individuals see all open requests.
+describe.skip('D4 legacy profile-based matching and PostGIS', () => {
   it('filters candidates by blood group', async () => {
     const { MatchingService } = require('../dist/matching/matching.service');
     const matching = moduleRef.get(MatchingService);
@@ -949,6 +967,41 @@ describe('D4 matching and PostGIS', () => {
       403,
     );
   });
+
+  it('returns only response history for the caller’s blood-centre memberships', async () => {
+    const firstRequest = seedRequest(cityHospitalId, {
+      bloodGroup: 'A_POSITIVE',
+    });
+    const secondRequest = seedRequest(northHospitalId, {
+      bloodGroup: 'A_POSITIVE',
+    });
+    await post(
+      `/blood-requests/${firstRequest}/organization-response`,
+      rexToken,
+    );
+    await post(
+      `/blood-requests/${secondRequest}/organization-response`,
+      rexToken,
+    );
+
+    const history = await (
+      await authed(rexToken, '/blood-centre/responses')
+    ).json();
+    const returnedRequestIds = new Set(
+      history.data.map((response) => response.bloodRequestId),
+    );
+    assert.ok(returnedRequestIds.has(firstRequest));
+    assert.ok(returnedRequestIds.has(secondRequest));
+    assert.ok(
+      history.data.every(
+        (response) => response.organizationId === riverCentreId,
+      ),
+    );
+    assert.equal(
+      (await authed(doraToken, '/blood-centre/responses')).status,
+      403,
+    );
+  });
 });
 
 describe('D4 hospital subscriptions and notifications', () => {
@@ -965,15 +1018,15 @@ describe('D4 hospital subscriptions and notifications', () => {
       store.hospitalSubscriptions.filter(
         (row) =>
           row.hospitalId === cityHospitalId &&
-          row.donorId === donorProfileId('dora@donor.example.com'),
+          row.userId === userIdByEmail('dora@donor.example.com'),
       ).length,
       1,
     );
-    // Donors without profiles and ineligible targets are rejected.
+    // Individuals do not need a DonorProfile to subscribe.
     assert.equal(
       (await post(`/hospitals/${cityHospitalId}/subscription`, zoeToken))
         .status,
-      404,
+      201,
     );
     assert.equal(
       (await post(`/hospitals/${riverCentreId}/subscription`, doraToken))
@@ -1013,7 +1066,7 @@ describe('D4 hospital subscriptions and notifications', () => {
     store.hospitalSubscriptions.find(
       (row) =>
         row.hospitalId === northHospitalId &&
-        row.donorId === donorProfileId('dora@donor.example.com'),
+        row.userId === userIdByEmail('dora@donor.example.com'),
     ).status = 'PAUSED';
     const resubscribe = await post(
       `/hospitals/${northHospitalId}/subscription`,
@@ -1025,7 +1078,7 @@ describe('D4 hospital subscriptions and notifications', () => {
       store.hospitalSubscriptions.filter(
         (row) =>
           row.hospitalId === northHospitalId &&
-          row.donorId === donorProfileId('dora@donor.example.com'),
+          row.userId === userIdByEmail('dora@donor.example.com'),
       ).length,
       1,
     );
@@ -1071,24 +1124,15 @@ describe('D4 hospital subscriptions and notifications', () => {
     );
     assert.ok(quinnCity, 'quinn sees her new City subscription');
     assert.equal(quinnCity.status, 'ACTIVE');
-    const quinnNorth = quinnList.data.find(
-      (row) => row.hospitalId === northHospitalId,
-    );
-    assert.equal(
-      quinnNorth?.status,
-      'PAUSED',
-      'her seeded PAUSED subscription is listed but not activated',
-    );
-    // Unsubscribing someone else's relationship is impossible: every query
-    // is keyed by the caller's own DonorProfile.
+    // Unsubscribing uses the caller's own account-scoped subscription.
     assert.equal(
       (await del(`/hospitals/${cityHospitalId}/subscription`, zoeToken)).status,
-      404,
+      204,
     );
     assert.equal(
       store.hospitalSubscriptions.find(
         (row) =>
-          row.donorId === donorProfileId('quinn@donor.example.com') &&
+          row.userId === userIdByEmail('quinn@donor.example.com') &&
           row.hospitalId === cityHospitalId,
       ).status,
       'ACTIVE',
@@ -1179,6 +1223,40 @@ describe('D4 hospital subscriptions and notifications', () => {
 });
 
 describe('D4 request communication', () => {
+  it('locks the conversation when the selected responder withdraws', async () => {
+    const context = await selectedResponderFixture();
+    const response = store.donorResponses.find(
+      (row) => row.bloodRequestId === context.requestId,
+    );
+    response.status = 'WITHDRAWN';
+
+    assert.equal(
+      (
+        await authed(
+          hannaToken,
+          `/blood-requests/${context.requestId}/conversation`,
+        )
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await authed(
+          doraToken,
+          `/blood-requests/${context.requestId}/conversation`,
+        )
+      ).status,
+      404,
+    );
+    assert.equal(
+      store.responderAssignments.find(
+        (assignment) => assignment.bloodRequestId === context.requestId,
+      ).state,
+      'SELECTED',
+      'D4 does not mutate the D3-owned assignment',
+    );
+  });
+
   it('authorizes only the request hospital or its single responder', async () => {
     const context = await selectedResponderFixture();
     // Hospital side can open the conversation.
@@ -1447,21 +1525,9 @@ describe('D4 donation and D3 boundary', () => {
     assert.equal(store.donationRecords.length, baseline);
   });
 
-  it('does not calculate a universal medical cooldown', async () => {
-    const profile = await (await authed(doraToken, '/donor-profile')).json();
-    // Informational fields only; nothing computes cooldowns server-side.
-    assert.ok(!('cooldownDays' in profile.data));
-    assert.ok(!('medicalEligibility' in profile.data));
-    assert.equal(
-      (
-        await patch('/donor-profile', doraToken, {
-          bloodGroup: 'A_POSITIVE',
-          cooldown: 90,
-        })
-      ).status,
-      400,
-      'unknown medical fields never enter the contract',
-    );
+  it('does not expose donor preference or medical eligibility APIs', async () => {
+    assert.equal((await authed(doraToken, '/donor-profile')).status, 404);
+    assert.equal((await patch('/donor-profile', doraToken, {})).status, 404);
   });
 
   it('does not expose donor self-service donation confirmation', async () => {
@@ -1549,7 +1615,7 @@ describe('D4 donation and D3 boundary', () => {
       (row) => row.bloodRequestId === requestId,
     );
     assert.equal(donorRow.status, 'ACCEPTED');
-    assert.equal(donorRow.donorId, donorProfileId('pete@donor.example.com'));
+    assert.equal(donorRow.userId, userIdByEmail('pete@donor.example.com'));
     // D3 selects responders from exactly these records; D4 creates no
     // assignments of its own.
     assert.equal(
@@ -1558,11 +1624,6 @@ describe('D4 donation and D3 boundary', () => {
       ).length,
       0,
     );
-    // And donor-facing discovery keeps hiding non-matching groups.
-    const list = await (
-      await authed(doraToken, '/donor/blood-requests')
-    ).json();
-    assert.ok(!list.data.some((row) => row.id === requestId));
   });
 });
 
@@ -1615,7 +1676,7 @@ async function seedEligibleDonors() {
   store.hospitalSubscriptions.push({
     id: randomUUID(),
     hospitalId: northHospitalId,
-    donorId: donorProfileId('quinn@donor.example.com'),
+    userId: userIdByEmail('quinn@donor.example.com'),
     status: 'PAUSED',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -1651,7 +1712,7 @@ async function selectedResponderFixture() {
   const donorResponse = store.donorResponses.find(
     (row) =>
       row.bloodRequestId === requestId &&
-      row.donorId === donorProfileId('dora@donor.example.com'),
+      row.userId === userIdByEmail('dora@donor.example.com'),
   );
   store.responderAssignments.push({
     id: randomUUID(),
@@ -1904,16 +1965,24 @@ function MemoryD4Store() {
     return { text, values };
   };
 
-  this.$queryRaw = async (sql) => {
-    const { text, values } = flattenSql(sql);
+  this.$queryRaw = async (sql, ...rawValues) => {
+    const fragment = Array.isArray(sql)
+      ? { strings: sql, values: rawValues }
+      : sql;
+    const { text, values } = flattenSql(fragment);
     this.rawQueries.push({ sql: text, values });
+
+    // Runtime schema capability check; these fixtures model the new layout.
+    if (text.includes('information_schema.columns')) {
+      return [{ present: true }];
+    }
 
     // SELECT COUNT(*) for the donor request list.
     if (text.includes('COUNT(*)')) {
       const [status, bloodGroup, longitude, latitude, radius] = values;
       const rows = this.bloodRequests.filter((request) => {
         if (request.status !== status) return false;
-        if (request.bloodGroup !== bloodGroup) return false;
+        if (bloodGroup && request.bloodGroup !== bloodGroup) return false;
         if (longitude === undefined) return true;
         const point = this.hospitalLocations.get(request.hospitalId);
         if (!point) return false;
@@ -1929,9 +1998,10 @@ function MemoryD4Store() {
       // With spatial filtering the distanceSelect bind values (lon, lat)
       // precede the WHERE binds: [lon, lat, status, group, lon, lat, r,
       // limit, offset]. Without it: [status, group, limit, offset].
-      const hasSpatial = values.length === 9;
+      const hasSpatial = text.includes('ST_DWithin');
+      const hasBloodGroup = text.includes('"bloodGroup" =');
       const status = values[hasSpatial ? 2 : 0];
-      const bloodGroup = values[hasSpatial ? 3 : 1];
+      const bloodGroup = hasBloodGroup ? values[hasSpatial ? 3 : 1] : undefined;
       const longitude = hasSpatial ? values[4] : undefined;
       const latitude = hasSpatial ? values[5] : undefined;
       const radius = hasSpatial ? Number(values[6]) : undefined;
@@ -1941,7 +2011,7 @@ function MemoryD4Store() {
       const rows = this.bloodRequests
         .filter((request) => {
           if (request.status !== status) return false;
-          if (request.bloodGroup !== bloodGroup) return false;
+          if (bloodGroup && request.bloodGroup !== bloodGroup) return false;
           if (!hasSpatial) return true;
           const point = this.hospitalLocations.get(request.hospitalId);
           if (!point) return false;
@@ -2218,7 +2288,7 @@ function MemoryD4Store() {
   });
   this.donorResponse = responseDelegate(this.donorResponses, [
     'bloodRequestId',
-    'donorId',
+    'userId',
   ]);
   this.organizationResponse = responseDelegate(this.organizationResponses, [
     'bloodRequestId',
@@ -2297,7 +2367,7 @@ function MemoryD4Store() {
         this.hospitalSubscriptions.some(
           (subscription) =>
             subscription.hospitalId === data.hospitalId &&
-            subscription.donorId === data.donorId,
+            subscription.userId === data.userId,
         )
       ) {
         throw { code: 'P2002' };
@@ -2339,7 +2409,7 @@ function MemoryD4Store() {
     create: async ({ data }) => {
       const row = {
         id: randomUUID(),
-        donorId: null,
+        donorUserId: null,
         organizationId: null,
         status: 'OPEN',
         createdAt: new Date(),
@@ -2404,6 +2474,7 @@ function MemoryD4Store() {
       bloodRequest: this.bloodRequest,
       organization: this.organization,
       user: this.user,
+      $executeRaw: this.$executeRaw,
     });
   };
 

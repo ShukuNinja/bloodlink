@@ -2,7 +2,7 @@
 
 ## 1. Implementation status awareness
 
-Read [`IMPLEMENTATION_STATUS_AND_HANDOFF.md`](IMPLEMENTATION_STATUS_AND_HANDOFF.md) before assigning work. In particular, the donor-profile, hospital-subscriptions, and donor-responses repositories intentionally throw `NotImplementedException`; they are scaffolds for D4, not completed workflows. The nearby-hospital repository has a real PostGIS query, but its API-level validation and end-to-end behavior still require verification.
+Read [`IMPLEMENTATION_STATUS_AND_HANDOFF.md`](IMPLEMENTATION_STATUS_AND_HANDOFF.md) before assigning work. The donor-profile, hospital-subscriptions, and donor-responses repositories are legacy unregistered scaffolds; the active D4 services implement persistence directly. Verify the registered controller → service → database path and current tests rather than treating these unused repositories as the active implementation. The nearby-hospital repository has a real PostGIS query, but its API-level validation and browser end-to-end behavior still require verification.
 
 ## 2. Quality gates
 

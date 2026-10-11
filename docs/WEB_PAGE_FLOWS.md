@@ -7,7 +7,7 @@ Implement navigation according to authenticated role and available capabilities.
 Suggested web information architecture:
 
 - **Public:** landing page, authentication.
-- **Individual:** hospital discovery, PatientNeed create, PatientNeed history/detail, supported donor profile and response views.
+- **Individual:** hospital discovery, PatientNeed create/history/detail, and a list of open blood requests with volunteer accept/withdraw and own response status. Donor profiles, advance availability/blood-group/notification preferences, and individual geolocation are not required.
 - **Hospital:** incoming PatientNeeds/review queue, PatientNeed review/detail, official BloodRequest management, responder/fulfilment views where supported.
 - **Blood bank:** supported organization response/coordination views.
 - **Shared:** account/session controls, loading/error states, access-denied/not-found handling.
@@ -88,7 +88,7 @@ Subscription means the individual opts in to follow blood requests posted by tha
 
 ### Notification behavior
 
-The user-facing intent is to know about blood requests posted by subscribed hospitals. Verify the current backend event, notification delivery, and preferences implementation before promising real-time push delivery. If only in-app state or a notification record is implemented, describe that accurately. The page should make it clear what notification channel is supported; do not invent email/SMS/push guarantees.
+Current in-app alerts are derived from open requests and the Individual's own response records. There is no stored notification history or push/email/SMS delivery guarantee. Individuals can browse all open requests directly without subscribing or configuring preferences.
 
 ### Subscription visibility
 

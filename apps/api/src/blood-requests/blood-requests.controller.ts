@@ -34,15 +34,15 @@ import { ResponderAssignmentsService } from './responder-assignments/responder-a
 
 /**
  * OWNER: D3
- * PURPOSE: Hospital-facing BloodRequest lifecycle and coordination route skeleton.
+ * PURPOSE: Hospital-facing BloodRequest lifecycle and coordination routes.
  * ENDPOINT/METHOD: GET /blood-requests[/:id][/responses], POST cancel/select/standby/release/fulfillment actions.
  * INPUT: Authenticated principal, request IDs, shared query/action contracts.
  * OUTPUT: Shared BloodRequest, D3 assignment, and D4 response-reference contracts.
  * AUTHORIZATION: HOSPITAL_ADMIN or HOSPITAL_STAFF with active membership in the owning hospital.
  * DEPENDENCIES: Existing JWT/Roles guards, shared validation, D3 services.
- * STATE CHANGES: TODO(D3); no public BloodRequest create route exists.
+ * STATE CHANGES: D3-owned cancellation, assignment, and fulfillment transitions; verification creates the official request.
  * NON-RESPONSIBILITIES: D4 response mutation/generation, matching, notifications, communication, medical workflows.
- * IMPLEMENTATION: TODO(D3).
+ * IMPLEMENTATION: Guarded routes delegate to D3 services and validated shared contracts.
  */
 @Controller('blood-requests')
 @UseGuards(JwtAuthGuard, RolesGuard)

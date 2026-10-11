@@ -224,7 +224,10 @@ describe('PostGIS query design', () => {
 
 async function registerAndLogin(email, overrides = {}) {
   const password = 'a-safe-test-password';
-  const registerResponse = await post('/auth/register', { email, password });
+  const registerResponse = await post('/auth/register', {
+    email,
+    password,
+  });
   assert.equal(registerResponse.status, 201);
   const { user } = (await registerResponse.json()).data;
   Object.assign(
@@ -309,7 +312,10 @@ function MemoryHospitalStore() {
     deleteMany: async () => ({ count: 0 }),
   };
 
-  this.organizationMembership = { findFirst: async () => null };
+  this.organizationMembership = {
+    findFirst: async () => null,
+    findMany: async () => [],
+  };
 
   this.$queryRaw = async (query) => {
     this.rawQueries.push({
@@ -319,6 +325,17 @@ function MemoryHospitalStore() {
     if (this.rawQueryError) throw this.rawQueryError;
     return this.hospitalRows.map((row) => ({ ...row }));
   };
+
+  this.$transaction = async (callback) =>
+    callback({
+      user: this.user,
+      organization: this.organization,
+      organizationMembership: this.organizationMembership,
+      $executeRaw: async (strings) => {
+        const sql = strings.join('');
+        throw new Error(`Unexpected auth raw SQL: ${sql}`);
+      },
+    });
 
   this.verifyConnection = async () => {};
 }

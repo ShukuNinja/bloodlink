@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { BloodRequestListQuery } from '@bloodlink/contracts';
 import { BloodRequestsRepository } from './blood-requests.repository';
+import { DonationsService } from '../donations/donations.service';
 
 /**
  * OWNER: D3
@@ -10,13 +11,16 @@ import { BloodRequestsRepository } from './blood-requests.repository';
  * OUTPUT: Shared BloodRequest and D4 boundary-reference contracts.
  * AUTHORIZATION: HOSPITAL_ADMIN or HOSPITAL_STAFF; repository must enforce target organization membership.
  * DEPENDENCIES: BloodRequestsRepository and responder assignment service.
- * STATE CHANGES: TODO(D3), constrained by documented lifecycle.
- * NON-RESPONSIBILITIES: Standalone create, D4 response mutation, matching, notifications, medical workflows.
- * IMPLEMENTATION: TODO(D3).
+ * STATE CHANGES: Delegates lifecycle actions to the D3 repository, constrained by the documented state machine.
+ * NON-RESPONSIBILITIES: Standalone create, D4 response mutation, matching, in-app alert generation, medical workflows. DonationRecord creation is delegated to D4 within the confirmation transaction.
+ * IMPLEMENTATION: Application-service boundary implemented.
  */
 @Injectable()
 export class BloodRequestsService {
-  constructor(private readonly repository: BloodRequestsRepository) {}
+  constructor(
+    private readonly repository: BloodRequestsRepository,
+    private readonly donations: DonationsService,
+  ) {}
 
   findManyForUser(userId: string, query: BloodRequestListQuery) {
     return this.repository.findManyForUser(userId, query);
@@ -39,6 +43,11 @@ export class BloodRequestsService {
   }
 
   confirmFulfillment(userId: string, bloodRequestId: string) {
-    return this.repository.confirmFulfillment(userId, bloodRequestId);
+    return this.repository.confirmFulfillment(
+      userId,
+      bloodRequestId,
+      (transaction, input) =>
+        this.donations.recordConfirmedDonorDonation(transaction, input),
+    );
   }
 }

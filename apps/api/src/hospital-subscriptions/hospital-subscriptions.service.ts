@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import type { HospitalSubscription } from '@bloodlink/contracts';
 import { PrismaService } from '../database/prisma.service';
-import { DonorProfileService } from '../donor-profile/donor-profile.service';
 
 /**
  * OWNER: D4
@@ -22,17 +21,13 @@ import { DonorProfileService } from '../donor-profile/donor-profile.service';
  */
 @Injectable()
 export class HospitalSubscriptionsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly profiles: DonorProfileService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async subscribe(userId: string, hospitalId: string) {
-    const profile = await this.requireProfile(userId);
     await this.requireActiveHospital(hospitalId);
 
     const existing = await this.prisma.hospitalSubscription.findFirst({
-      where: { hospitalId, donorId: profile.id },
+      where: { hospitalId, userId },
     });
     if (existing && existing.status === 'ACTIVE') {
       throw new ConflictException('Subscription already exists');
@@ -47,7 +42,7 @@ export class HospitalSubscriptionsService {
 
     try {
       const created = await this.prisma.hospitalSubscription.create({
-        data: { hospitalId, donorId: profile.id, status: 'ACTIVE' },
+        data: { hospitalId, userId, status: 'ACTIVE' },
       });
       return toSubscription(created);
     } catch (error) {
@@ -60,9 +55,8 @@ export class HospitalSubscriptionsService {
 
   /** DELETE semantics: removing a missing subscription is a 404. */
   async unsubscribe(userId: string, hospitalId: string): Promise<void> {
-    const profile = await this.requireProfile(userId);
     const existing = await this.prisma.hospitalSubscription.findFirst({
-      where: { hospitalId, donorId: profile.id },
+      where: { hospitalId, userId },
     });
     if (!existing) throw new NotFoundException('Subscription not found');
     await this.prisma.hospitalSubscription.delete({
@@ -71,18 +65,11 @@ export class HospitalSubscriptionsService {
   }
 
   async listSubscriptions(userId: string) {
-    const profile = await this.requireProfile(userId);
     const rows = await this.prisma.hospitalSubscription.findMany({
-      where: { donorId: profile.id },
+      where: { userId },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
     });
     return rows.map(toSubscription);
-  }
-
-  private async requireProfile(userId: string) {
-    const profile = await this.profiles.findProfileRowByUserId(userId);
-    if (!profile) throw new NotFoundException('Donor profile not found');
-    return profile;
   }
 
   private async requireActiveHospital(hospitalId: string) {
