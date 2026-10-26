@@ -1,4 +1,4 @@
-# Implementation Plan and Acceptance Criteria
+> **DEPRECATED — HISTORICAL REFERENCE ONLY (2026-10-26).** Use the current [replacement document](../../project/implementation-roadmap.md) and [documentation index](../../README.md). This archived snapshot may contradict the current product or implementation; it is retained for historical context.`r`n`r`n# Implementation Plan and Acceptance Criteria
 
 The checkboxes below are the delivery acceptance target, not a claim that the
 current branch has passed every item. See `PROGRESS_LOG.md` for the latest

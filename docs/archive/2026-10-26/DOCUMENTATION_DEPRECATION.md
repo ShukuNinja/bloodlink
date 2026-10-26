@@ -1,4 +1,4 @@
-# Documentation Deprecation and Migration Plan
+> **DEPRECATED — HISTORICAL REFERENCE ONLY (2026-10-26).** Use the current [replacement document](../../README.md) and [documentation index](../../README.md). This archived snapshot may contradict the current product or implementation; it is retained for historical context.`r`n`r`n# Documentation Deprecation and Migration Plan
 
 ## Objective
 

@@ -1,4 +1,4 @@
-# Local Development Runbook
+> **DEPRECATED — HISTORICAL REFERENCE ONLY (2026-10-26).** Use the current [replacement document](../../development/local-development.md) and [documentation index](../../README.md). This archived snapshot may contradict the current product or implementation; it is retained for historical context.`r`n`r`n# Local Development Runbook
 
 ## 1. Prerequisites
 

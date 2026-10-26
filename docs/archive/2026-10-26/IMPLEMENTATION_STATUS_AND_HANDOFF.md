@@ -1,4 +1,4 @@
-# Implementation Status and Developer Handoff
+> **DEPRECATED — HISTORICAL REFERENCE ONLY (2026-10-26).** Use the current [replacement document](../../project/current-implementation-status.md) and [documentation index](../../README.md). This archived snapshot may contradict the current product or implementation; it is retained for historical context.`r`n`r`n# Implementation Status and Developer Handoff
 
 **Purpose:** Separate working implementation from intentional scaffolding so incoming developers can take ownership without mistaking a registered method for a completed feature.
 

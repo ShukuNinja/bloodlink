@@ -1,4 +1,4 @@
-# Product Scope and Domain Rules
+> **DEPRECATED — HISTORICAL REFERENCE ONLY (2026-10-26).** Use the current [replacement document](../../product/current-product-scope.md) and [documentation index](../../README.md). This archived snapshot may contradict the current product or implementation; it is retained for historical context.`r`n`r`n# Product Scope and Domain Rules
 
 ## 1. Product goal
 
