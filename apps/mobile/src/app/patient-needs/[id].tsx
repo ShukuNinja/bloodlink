@@ -19,6 +19,7 @@ import {
   usePatientNeed,
 } from '../../features/individual/patient-needs/hooks';
 import { appStyles } from '../styles';
+import { PatientNeedConversationPanel } from '../../features/communication/patient-need-conversation-panel';
 
 export default function PatientNeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -147,6 +148,9 @@ export default function PatientNeedDetailScreen() {
             )
           ) : null}
         </View>
+      ) : null}
+      {record?.status === 'VERIFIED' && id ? (
+        <PatientNeedConversationPanel patientNeedId={id} />
       ) : null}
     </ScrollView>
   );

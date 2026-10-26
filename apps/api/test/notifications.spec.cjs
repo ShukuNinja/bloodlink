@@ -10,6 +10,7 @@ const {
 describe('in-app request alerts', () => {
   it('shows open requests to every Individual and omits their responded requests', async () => {
     const service = new NotificationsService({
+      organizationSubscription: { findMany: async () => [] },
       bloodRequest: {
         findMany: async () => [request('open-1'), request('open-2')],
       },

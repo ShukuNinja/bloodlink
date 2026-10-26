@@ -51,7 +51,7 @@ export class AdminService {
       }),
       this.prisma.donorResponse.count(),
       this.prisma.organizationResponse.count(),
-      this.prisma.hospitalSubscription.count(),
+      this.prisma.organizationSubscription.count(),
       this.prisma.donationRecord.count(),
     ]);
 

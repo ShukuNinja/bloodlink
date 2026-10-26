@@ -6,6 +6,8 @@ import { MatchingService } from '../matching/matching.service';
 import { ResponsesService } from '../responses/responses.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CommunicationService } from '../communication/communication.service';
+import { OrganizationCommunicationService } from '../communication/organization-communication.service';
+import { PatientNeedCommunicationService } from '../communication/patient-need-communication.service';
 import { DonorProfileService } from '../donor-profile/donor-profile.service';
 import { HospitalSubscriptionsService } from '../hospital-subscriptions/hospital-subscriptions.service';
 import { DonationsModule } from '../donations/donations.module';
@@ -20,6 +22,8 @@ import { DonationsModule } from '../donations/donations.module';
     ResponsesService,
     NotificationsService,
     CommunicationService,
+    OrganizationCommunicationService,
+    PatientNeedCommunicationService,
     DonorProfileService,
     HospitalSubscriptionsService,
   ],

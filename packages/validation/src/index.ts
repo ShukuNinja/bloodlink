@@ -7,11 +7,13 @@ import type {
   BloodRequestListQuery,
   HospitalPatientNeedQuery,
   HospitalSearchRequest,
+  OrganizationSearchRequest,
   RefreshInput,
   RegisterInput,
   DonorProfileUpdate,
   DonorBloodRequestQuery,
   CreateMessageRequest,
+  OpenOrganizationConversationRequest,
   CreatePushSubscriptionRequest,
   AdminRecordListQuery,
 } from '@bloodlink/contracts';
@@ -127,6 +129,12 @@ export const hospitalSearchSchema: z.ZodType<HospitalSearchRequest> =
     query: z.string().trim().min(1).optional(),
   });
 
+export const organizationSearchSchema: z.ZodType<OrganizationSearchRequest> =
+  z.strictObject({
+    query: z.string().trim().min(1).max(255),
+    type: z.enum(['HOSPITAL', 'BLOOD_CENTRE']).optional(),
+  });
+
 const patientNeedStatusSchema = z.enum([
   'PENDING_HOSPITAL_REVIEW',
   'VERIFIED',
@@ -232,6 +240,9 @@ export const hospitalSubscriptionSchema = optionalEmptyActionSchema;
 
 export const createMessageSchema: z.ZodType<CreateMessageRequest> =
   z.strictObject({ content: z.string().trim().min(1) });
+
+export const openOrganizationConversationSchema: z.ZodType<OpenOrganizationConversationRequest> =
+  z.strictObject({ sourceOrganizationId: z.uuid() });
 
 export const pushSubscriptionSchema: z.ZodType<CreatePushSubscriptionRequest> =
   z.strictObject({

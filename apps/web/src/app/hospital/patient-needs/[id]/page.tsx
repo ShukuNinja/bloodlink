@@ -13,6 +13,7 @@ import {
   statusBadgeClass,
 } from '@/features/individual/patient-needs/present';
 import { hospitalApi } from '../../api';
+import { PatientNeedConversationPanel } from '@/features/communication/patient-need-conversation-panel';
 
 export default function HospitalPatientNeedDetailPage({
   params,
@@ -183,6 +184,9 @@ export default function HospitalPatientNeedDetailPage({
             </div>
           ) : null}
         </div>
+      ) : null}
+      {record?.status === 'VERIFIED' ? (
+        <PatientNeedConversationPanel patientNeedId={id} />
       ) : null}
     </main>
   );

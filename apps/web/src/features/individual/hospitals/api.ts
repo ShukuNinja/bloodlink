@@ -1,6 +1,6 @@
 import type {
-  HospitalSubscriptionListResponse,
-  HospitalSubscriptionResponse,
+  OrganizationSubscriptionListResponse,
+  OrganizationSubscriptionResponse,
   HospitalSearchRequest,
   HospitalSearchResponse,
 } from '@bloodlink/contracts';
@@ -34,22 +34,22 @@ export const hospitalDiscoveryApi: HospitalDiscoveryApi = {
 
 export const hospitalSubscriptionApi = {
   list() {
-    return apiRequest<HospitalSubscriptionListResponse>(
+    return apiRequest<OrganizationSubscriptionListResponse>(
       'GET',
-      '/hospital-subscriptions',
+      '/organization-subscriptions',
     );
   },
-  subscribe(hospitalId: string) {
-    return apiRequest<HospitalSubscriptionResponse>(
+  subscribe(organizationId: string) {
+    return apiRequest<OrganizationSubscriptionResponse>(
       'POST',
-      `/hospitals/${encodeURIComponent(hospitalId)}/subscription`,
+      `/organizations/${encodeURIComponent(organizationId)}/subscription`,
       { body: {} },
     );
   },
-  unsubscribe(hospitalId: string) {
+  unsubscribe(organizationId: string) {
     return apiRequest<void>(
       'DELETE',
-      `/hospitals/${encodeURIComponent(hospitalId)}/subscription`,
+      `/organizations/${encodeURIComponent(organizationId)}/subscription`,
     );
   },
 };

@@ -132,40 +132,44 @@ enum PushPlatform {
 }
 
 model User {
-  id                 String                   @id @default(uuid()) @db.Uuid
-  email              String                   @unique @db.VarChar(320)
-  passwordHash       String                   @db.VarChar(255)
-  role               UserRole                 @default(INDIVIDUAL)
-  status             UserStatus               @default(ACTIVE)
-  createdAt          DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime                 @updatedAt @db.Timestamptz(6)
-  memberships        OrganizationMembership[]
-  refreshTokens      RefreshToken[]
-  patientNeeds       PatientNeed[]
-  donorProfile       DonorProfile?
-  donorResponses     DonorResponse[]
-  donorConversations  Conversation[] @relation("DonorConversationParticipant")
-  donationsAsDonor   DonationRecord[] @relation("DonationDonor")
-  hospitalSubscriptions HospitalSubscription[]
-  pushSubscriptions  PushSubscription[]
-  sentMessages       Message[]
-  confirmedDonations DonationRecord[]
+  id                        String                            @id @default(uuid()) @db.Uuid
+  email                     String                            @unique @db.VarChar(320)
+  passwordHash              String                            @db.VarChar(255)
+  role                      UserRole                          @default(INDIVIDUAL)
+  status                    UserStatus                        @default(ACTIVE)
+  createdAt                 DateTime                          @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                          @updatedAt @db.Timestamptz(6)
+  memberships               OrganizationMembership[]
+  refreshTokens             RefreshToken[]
+  patientNeeds              PatientNeed[]
+  donorProfile              DonorProfile?
+  donorResponses            DonorResponse[]
+  donorConversations        Conversation[]                    @relation("DonorConversationParticipant")
+  sentPatientNeedMessages   PatientNeedConversationMessage[]
+  donationsAsDonor          DonationRecord[]                  @relation("DonationDonor")
+  organizationSubscriptions OrganizationSubscription[]
+  pushSubscriptions         PushSubscription[]
+  sentMessages              Message[]
+  sentOrganizationMessages  OrganizationConversationMessage[]
+  confirmedDonations        DonationRecord[]
 }
 
 model Organization {
-  id            String                                @id @default(uuid()) @db.Uuid
-  name          String                                @db.VarChar(255)
-  type          OrganizationType
-  status        OrganizationStatus                    @default(ACTIVE)
-  createdAt     DateTime                              @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime                              @updatedAt @db.Timestamptz(6)
-  memberships   OrganizationMembership[]
-  patientNeeds  PatientNeed[]
-  location      Unsupported("geography(Point,4326)")?
-  bloodRequests BloodRequest[]
-  responses     OrganizationResponse[]
-  subscriptions HospitalSubscription[]
-  conversations Conversation[]
+  id                           String                                @id @default(uuid()) @db.Uuid
+  name                         String                                @db.VarChar(255)
+  type                         OrganizationType
+  status                       OrganizationStatus                    @default(ACTIVE)
+  createdAt                    DateTime                              @default(now()) @db.Timestamptz(6)
+  updatedAt                    DateTime                              @updatedAt @db.Timestamptz(6)
+  memberships                  OrganizationMembership[]
+  patientNeeds                 PatientNeed[]
+  location                     Unsupported("geography(Point,4326)")?
+  bloodRequests                BloodRequest[]
+  responses                    OrganizationResponse[]
+  subscriptions                OrganizationSubscription[]
+  conversations                Conversation[]
+  conversationsAsOrganizationA OrganizationConversation[]            @relation("OrgConversationA")
+  conversationsAsOrganizationB OrganizationConversation[]            @relation("OrgConversationB")
 }
 
 model OrganizationMembership {
@@ -197,21 +201,22 @@ model RefreshToken {
 }
 
 model PatientNeed {
-  id                String                @id @default(uuid()) @db.Uuid
-  submittedByUserId String                @db.Uuid
-  hospitalId        String                @db.Uuid
+  id                String                   @id @default(uuid()) @db.Uuid
+  submittedByUserId String                   @db.Uuid
+  hospitalId        String                   @db.Uuid
   bloodGroup        PatientNeedBloodGroup
   component         PatientNeedComponent
   units             Int
   urgency           PatientNeedUrgency
-  requiredBy        DateTime              @db.Timestamptz(6)
-  additionalNotes   String                @db.Text
-  status            PatientNeedStatus     @default(PENDING_HOSPITAL_REVIEW)
-  createdAt         DateTime              @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
-  submittedBy       User                  @relation(fields: [submittedByUserId], references: [id], onDelete: Restrict)
-  hospital          Organization          @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  requiredBy        DateTime                 @db.Timestamptz(6)
+  additionalNotes   String                   @db.Text
+  status            PatientNeedStatus        @default(PENDING_HOSPITAL_REVIEW)
+  createdAt         DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime                 @updatedAt @db.Timestamptz(6)
+  submittedBy       User                     @relation(fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  hospital          Organization             @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
   bloodRequest      BloodRequest?
+  conversation      PatientNeedConversation?
 
   @@index([submittedByUserId, createdAt])
   @@index([hospitalId, status])
@@ -292,18 +297,19 @@ model OrganizationResponse {
   @@index([organizationId, status])
 }
 
-model HospitalSubscription {
-  id         String                     @id @default(uuid()) @db.Uuid
-  hospitalId String                     @db.Uuid
-  userId     String                     @db.Uuid
-  status     HospitalSubscriptionStatus
-  createdAt  DateTime                   @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime                   @updatedAt @db.Timestamptz(6)
-  hospital   Organization               @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
-  individual User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+model OrganizationSubscription {
+  id             String                     @id @default(uuid()) @db.Uuid
+  organizationId String                     @db.Uuid
+  userId         String                     @db.Uuid
+  status         HospitalSubscriptionStatus
+  createdAt      DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                   @updatedAt @db.Timestamptz(6)
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscriber     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([hospitalId, userId])
+  @@unique([organizationId, userId])
   @@index([userId, status])
+  @@index([organizationId, status])
 }
 
 model PushSubscription {
@@ -346,6 +352,58 @@ model Message {
   readAt         DateTime?    @db.Timestamptz(6)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+}
+
+model OrganizationConversation {
+  id                         String                            @id @default(uuid()) @db.Uuid
+  participantAOrganizationId String                            @db.Uuid
+  participantBOrganizationId String                            @db.Uuid
+  status                     ConversationStatus
+  createdAt                  DateTime                          @default(now()) @db.Timestamptz(6)
+  updatedAt                  DateTime                          @updatedAt @db.Timestamptz(6)
+  participantA               Organization                      @relation("OrgConversationA", fields: [participantAOrganizationId], references: [id], onDelete: Cascade)
+  participantB               Organization                      @relation("OrgConversationB", fields: [participantBOrganizationId], references: [id], onDelete: Cascade)
+  messages                   OrganizationConversationMessage[]
+
+  @@unique([participantAOrganizationId, participantBOrganizationId])
+  @@index([participantAOrganizationId, status])
+  @@index([participantBOrganizationId, status])
+}
+
+model OrganizationConversationMessage {
+  id             String                   @id @default(uuid()) @db.Uuid
+  conversationId String                   @db.Uuid
+  senderId       String                   @db.Uuid
+  content        String                   @db.Text
+  createdAt      DateTime                 @default(now()) @db.Timestamptz(6)
+  readAt         DateTime?                @db.Timestamptz(6)
+  conversation   OrganizationConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User                     @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+}
+
+model PatientNeedConversation {
+  id            String                           @id @default(uuid()) @db.Uuid
+  patientNeedId String                           @unique @db.Uuid
+  status        ConversationStatus
+  createdAt     DateTime                         @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime                         @updatedAt @db.Timestamptz(6)
+  patientNeed   PatientNeed                      @relation(fields: [patientNeedId], references: [id], onDelete: Cascade)
+  messages      PatientNeedConversationMessage[]
+}
+
+model PatientNeedConversationMessage {
+  id             String                  @id @default(uuid()) @db.Uuid
+  conversationId String                  @db.Uuid
+  senderId       String                  @db.Uuid
+  content        String                  @db.Text
+  createdAt      DateTime                @default(now()) @db.Timestamptz(6)
+  readAt         DateTime?               @db.Timestamptz(6)
+  conversation   PatientNeedConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User                    @relation(fields: [senderId], references: [id], onDelete: Restrict)
 
   @@index([conversationId, createdAt])
 }

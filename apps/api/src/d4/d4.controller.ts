@@ -15,6 +15,7 @@ import type {
   BloodRequestListQuery,
   CreateMessageRequest,
   DonorBloodRequestQuery,
+  OpenOrganizationConversationRequest,
 } from '@bloodlink/contracts';
 import {
   createMessageSchema,
@@ -24,6 +25,7 @@ import {
   bloodRequestListQuerySchema,
   hospitalSubscriptionSchema,
   organizationResponseSchema,
+  openOrganizationConversationSchema,
 } from '@bloodlink/validation';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -160,10 +162,9 @@ export class D4Controller {
     return this.d4.withdrawOrganizationResponse(user.id, id);
   }
 
-  /** OWNER: D4 | ENDPOINT: POST /hospitals/:id/subscription | PURPOSE: Subscribe donor to a hospital network. | INPUT: Hospital ID. | OUTPUT: HospitalSubscription. | AUTHORIZATION: Donor owner; hospital relationship checked server-side. | DEPENDENCIES: D4 subscriptions. | STATE CHANGES: D4 records only. | NON-RESPONSIBILITIES: Push device subscription.. */
+  /** OWNER: D4 | ENDPOINT: POST /organizations/:id/subscription | PURPOSE: Subscribe the authenticated user to a hospital or blood centre. | INPUT: Organization ID. | OUTPUT: OrganizationSubscription. | AUTHORIZATION: Authenticated user; target organization type and status checked server-side. | DEPENDENCIES: Organization subscription service. | STATE CHANGES: One user-to-organization subscription. | NON-RESPONSIBILITIES: Subscribing individuals or device push subscriptions. */
   @HttpCode(HttpStatus.CREATED)
-  @Post('hospitals/:id/subscription')
-  @Roles('INDIVIDUAL')
+  @Post(['organizations/:id/subscription', 'hospitals/:id/subscription'])
   subscribe(
     @CurrentUser() user: AuthenticatedPrincipal,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -173,19 +174,82 @@ export class D4Controller {
     return this.d4.subscribe(user.id, id);
   }
 
-  /** OWNER: D4 | ENDPOINT: DELETE /hospitals/:id/subscription | PURPOSE: Remove own hospital network subscription. | INPUT: Hospital ID. | OUTPUT: 204. | AUTHORIZATION: Donor owner; hospital relationship checked server-side. | DEPENDENCIES: D4 subscriptions. | STATE CHANGES: D4 records only. | NON-RESPONSIBILITIES: Push device subscription.. */
-  @Delete('hospitals/:id/subscription') @Roles('INDIVIDUAL') unsubscribe(
+  /** OWNER: D4 | ENDPOINT: DELETE /organizations/:id/subscription | PURPOSE: Remove the authenticated user's organization subscription. | INPUT: Organization ID. | OUTPUT: 204. | AUTHORIZATION: Subscription owner. | STATE CHANGES: Removes only the caller's subscription. | NON-RESPONSIBILITIES: Device push subscription changes. */
+  @Delete(['organizations/:id/subscription', 'hospitals/:id/subscription'])
+  unsubscribe(
     @CurrentUser() user: AuthenticatedPrincipal,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.d4.unsubscribe(user.id, id);
   }
 
-  /** OWNER: D4 | ENDPOINT: GET /hospital-subscriptions | PURPOSE: List current donor's hospital networks. | INPUT: Authenticated user. | OUTPUT: Subscription list. | AUTHORIZATION: INDIVIDUAL owner. | DEPENDENCIES: D4 subscriptions. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Device push subscriptions.. */
-  @Get('hospital-subscriptions') @Roles('INDIVIDUAL') listSubscriptions(
-    @CurrentUser() user: AuthenticatedPrincipal,
-  ) {
+  /** OWNER: D4 | ENDPOINT: GET /organization-subscriptions | PURPOSE: List this user's hospital and blood-centre subscriptions. | INPUT: Authenticated user. | OUTPUT: Subscription list. | AUTHORIZATION: Authenticated owner only. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Device push subscriptions. */
+  @Get(['organization-subscriptions', 'hospital-subscriptions'])
+  listSubscriptions(@CurrentUser() user: AuthenticatedPrincipal) {
     return this.d4.listSubscriptions(user.id);
+  }
+
+  @Get('organization-conversations')
+  listOrganizationConversations(@CurrentUser() user: AuthenticatedPrincipal) {
+    return this.d4.listOrganizationConversations(user.id);
+  }
+
+  @Get('patient-need-conversations')
+  listPatientNeedConversations(@CurrentUser() user: AuthenticatedPrincipal) {
+    return this.d4.listPatientNeedConversations(user.id);
+  }
+
+  @Get('patient-needs/:id/conversation')
+  getPatientNeedConversation(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) patientNeedId: string,
+  ) {
+    return this.d4.getPatientNeedConversation(user.id, patientNeedId);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('patient-needs/:id/messages')
+  createPatientNeedMessage(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) patientNeedId: string,
+    @Body(new ZodValidationPipe(createMessageSchema))
+    input: CreateMessageRequest,
+  ) {
+    return this.d4.createPatientNeedMessage(user.id, patientNeedId, input);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('organizations/:id/conversations')
+  openOrganizationConversation(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) targetOrganizationId: string,
+    @Body(new ZodValidationPipe(openOrganizationConversationSchema))
+    input: OpenOrganizationConversationRequest,
+  ) {
+    return this.d4.openOrganizationConversation(
+      user.id,
+      targetOrganizationId,
+      input.sourceOrganizationId,
+    );
+  }
+
+  @Get('organization-conversations/:id')
+  getOrganizationConversation(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.d4.getOrganizationConversation(user.id, id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('organization-conversations/:id/messages')
+  createOrganizationMessage(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(createMessageSchema))
+    input: CreateMessageRequest,
+  ) {
+    return this.d4.createOrganizationMessage(user.id, id, input);
   }
 
   /** OWNER: D4 | ENDPOINT: GET /blood-requests/:id/conversation | PURPOSE: Read request-scoped hospital/responder conversation. | INPUT: Request ID. | OUTPUT: Conversation. | AUTHORIZATION: Authorized request participant. | DEPENDENCIES: D4 communication service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Generic chat.. */

@@ -120,9 +120,16 @@ function AppNavigation() {
         </Link>
         {status === 'authenticated' ? (
           <>
+            <nav className="nav-links" aria-label="Main navigation">
+              <Link href="/organizations?type=HOSPITAL">Find hospitals</Link>
+              <Link href="/organizations?type=BLOOD_CENTRE">
+                Find blood banks
+              </Link>
+              <Link href="/conversations">Conversations</Link>
+              <Link href="/subscriptions">Subscriptions</Link>
+            </nav>
             {user?.role === 'INDIVIDUAL' && user.organizations.length === 0 ? (
               <>
-                <Link href="/hospitals">Find hospitals</Link>
                 <Link href="/patient-needs/new">New patient need</Link>
                 <Link href="/patient-needs">My patient needs</Link>
                 <Link href="/donor">Blood requests</Link>
@@ -132,7 +139,10 @@ function AppNavigation() {
             {user?.organizations.some(
               (organization) => organization.type === 'HOSPITAL',
             ) ? (
-              <Link href="/hospital/patient-needs">Hospital workspace</Link>
+              <nav className="nav-links" aria-label="Hospital navigation">
+                <Link href="/hospital/patient-needs">Patient needs</Link>
+                <Link href="/hospital/blood-requests">Blood requests</Link>
+              </nav>
             ) : null}
             {user?.organizations.some(
               (organization) => organization.type === 'BLOOD_CENTRE',
@@ -168,6 +178,9 @@ function AuthGate({ children }: { children: ReactNode }) {
   const { status, restoreError, restore, user } = useAuthSession();
   const protectedRoute =
     pathname === '/hospitals' ||
+    pathname.startsWith('/organizations') ||
+    pathname.startsWith('/conversations') ||
+    pathname.startsWith('/subscriptions') ||
     pathname.startsWith('/donor') ||
     pathname.startsWith('/notifications') ||
     pathname.startsWith('/patient-needs') ||

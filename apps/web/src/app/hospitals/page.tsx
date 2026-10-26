@@ -26,8 +26,6 @@ export default function HospitalsPage() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set());
-  const [subscriptionSetupRequired, setSubscriptionSetupRequired] =
-    useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [subscriptionBusyIds, setSubscriptionBusyIds] = useState<Set<string>>(
     new Set(),
@@ -57,23 +55,17 @@ export default function HospitalsPage() {
           new Set(
             response.data
               .filter((row) => row.status === 'ACTIVE')
-              .map((row) => row.hospitalId),
+              .map((row) => row.organizationId),
           ),
         );
-        setSubscriptionSetupRequired(false);
       })
       .catch((cause: unknown) => {
         if (!active) return;
-        if (cause instanceof ApiClientError && cause.status === 404) {
-          setSubscriptionSetupRequired(true);
-          setSubscribedIds(new Set());
-        } else {
         setSubscriptionLoadError(
-            cause instanceof ApiClientError
-              ? cause.message
-              : 'Could not load subscription state.',
-          );
-        }
+          cause instanceof ApiClientError
+            ? cause.message
+            : 'Could not load subscription state.',
+        );
       })
       .finally(() => {
         if (active) setSubscriptionLoading(false);
@@ -285,12 +277,6 @@ export default function HospitalsPage() {
           <div className="alert error">{error.message}</div>
         )
       ) : null}
-      {subscriptionSetupRequired ? (
-        <div className="alert">
-          <Link href="/donor">Set up your optional donor preferences</Link>{' '}
-          before following hospital requests.
-        </div>
-      ) : null}
       {subscriptionLoadError ? (
         <div className="alert error" role="alert">
           <span>{subscriptionLoadError}</span>{' '}
@@ -353,7 +339,7 @@ export default function HospitalsPage() {
                       <button
                         type="button"
                         disabled={isSubscriptionActionDisabled(hospital.id, {
-                          setupRequired: subscriptionSetupRequired,
+                          setupRequired: false,
                           loading: subscriptionLoading,
                           loadError: subscriptionLoadError,
                           busyHospitalIds: subscriptionBusyIds,

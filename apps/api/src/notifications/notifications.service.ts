@@ -30,6 +30,17 @@ export class NotificationsService {
    * reflects the current matching and subscription state.
    */
   async listForIndividual(userId: string): Promise<InAppNotification[]> {
+    const subscriptions = await this.prisma.organizationSubscription.findMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        organization: { type: 'HOSPITAL', status: 'ACTIVE' },
+      },
+      select: { organizationId: true },
+    });
+    const subscribedHospitalIds = new Set(
+      subscriptions.map((subscription) => subscription.organizationId),
+    );
     const requests = await this.prisma.bloodRequest.findMany({
       where: {
         status: { in: [...REQUEST_STATUSES_OPEN_FOR_RESPONSES] },
@@ -57,7 +68,9 @@ export class NotificationsService {
             status: request.status,
             hospitalName: request.hospital.name,
           },
-          'NEARBY_MATCH',
+          subscribedHospitalIds.has(request.hospitalId)
+            ? 'HOSPITAL_SUBSCRIPTION'
+            : 'NEARBY_MATCH',
         ),
       );
   }

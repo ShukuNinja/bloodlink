@@ -2399,6 +2399,58 @@ function MemoryD4Store() {
     },
   };
 
+  this.organizationSubscription = {
+    findFirst: async ({ where }) => {
+      const row = this.hospitalSubscriptions.find((subscription) =>
+        matches(subscription, {
+          hospitalId: where.organizationId,
+          userId: where.userId,
+        }),
+      );
+      return row
+        ? {
+            ...row,
+            organizationId: row.hospitalId,
+            organization: { name: 'Test hospital', type: 'HOSPITAL' },
+          }
+        : null;
+    },
+    findMany: async ({ where, orderBy = [] }) =>
+      sortRows(
+        this.hospitalSubscriptions.filter((subscription) =>
+          matches(subscription, {
+            hospitalId: where.organizationId,
+            userId: where.userId,
+            status: where.status,
+          }),
+        ),
+        orderBy,
+      ).map((row) => ({
+        ...row,
+        organizationId: row.hospitalId,
+        organization: { name: 'Test hospital', type: 'HOSPITAL' },
+      })),
+    create: async ({ data }) => {
+      const row = await this.hospitalSubscription.create({
+        data: { ...data, hospitalId: data.organizationId },
+      });
+      return {
+        ...row,
+        organizationId: row.hospitalId,
+        organization: { name: 'Test hospital', type: 'HOSPITAL' },
+      };
+    },
+    update: async ({ where, data }) => {
+      const row = await this.hospitalSubscription.update({ where, data });
+      return {
+        ...row,
+        organizationId: row.hospitalId,
+        organization: { name: 'Test hospital', type: 'HOSPITAL' },
+      };
+    },
+    delete: this.hospitalSubscription.delete,
+  };
+
   this.conversation = {
     findFirst: async ({ where }) => {
       const row = this.conversations.find((conversation) =>

@@ -14,6 +14,7 @@ import {
   useCancelPatientNeed,
   usePatientNeed,
 } from '@/features/individual/patient-needs/hooks';
+import { PatientNeedConversationPanel } from '@/features/communication/patient-need-conversation-panel';
 
 export default function PatientNeedDetailPage({
   params,
@@ -150,6 +151,9 @@ export default function PatientNeedDetailPage({
             )
           ) : null}
         </div>
+      ) : null}
+      {record?.status === 'VERIFIED' ? (
+        <PatientNeedConversationPanel patientNeedId={id} />
       ) : null}
     </main>
   );
