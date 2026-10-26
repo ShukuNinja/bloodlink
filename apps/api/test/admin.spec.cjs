@@ -25,7 +25,7 @@ describe('admin dashboard', () => {
       donorProfile: delegate('donorProfile'),
       donorResponse: delegate('donorResponse'),
       organizationResponse: delegate('organizationResponse'),
-      hospitalSubscription: delegate('hospitalSubscription'),
+      organizationSubscription: delegate('organizationSubscription'),
       donationRecord: delegate('donationRecord'),
     });
 

@@ -215,6 +215,21 @@ export type HospitalSummary = {
 
 export type HospitalSearchResponse = ApiSuccess<HospitalSummary[]>;
 
+export type OrganizationSearchRequest = {
+  query?: string;
+  type?: OrganizationType;
+  latitude?: number;
+  longitude?: number;
+  radiusMeters?: number;
+  sortOrder?: 'ASC' | 'DESC';
+};
+export type OrganizationSummary = {
+  id: ResourceId;
+  name: string;
+  type: OrganizationType;
+};
+export type OrganizationSearchResponse = ApiSuccess<OrganizationSummary[]>;
+
 export type BloodRequestStatus =
   | 'OPEN'
   | 'RESPONSES_RECEIVED'
@@ -427,6 +442,21 @@ export type HospitalSubscriptionListResponse = ApiSuccess<
 >;
 export type HospitalSubscriptionResponse = ApiSuccess<HospitalSubscription>;
 
+export type OrganizationSubscription = {
+  id: ResourceId;
+  organizationId: ResourceId;
+  organizationName: string;
+  organizationType: OrganizationType;
+  status: HospitalSubscriptionStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+};
+export type OrganizationSubscriptionListResponse = ApiSuccess<
+  OrganizationSubscription[]
+>;
+export type OrganizationSubscriptionResponse =
+  ApiSuccess<OrganizationSubscription>;
+
 /** Internal matching boundary; donor location is never part of this shape. */
 export type MatchingCandidateBoundary = {
   donorId: ResourceId;
@@ -479,3 +509,53 @@ export type ConversationDetail = Conversation & { messages: Message[] };
 export type ConversationResponse = ApiSuccess<ConversationDetail>;
 export type MessageResponse = ApiSuccess<Message>;
 export type CreateMessageRequest = { content: string };
+
+export type OrganizationConversationSummary = {
+  id: ResourceId;
+  otherOrganization: OrganizationSummary;
+  status: ConversationStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+  lastMessage?: Pick<Message, 'content' | 'createdAt' | 'senderId'>;
+};
+export type OrganizationConversationDetail = {
+  id: ResourceId;
+  participantA: OrganizationSummary;
+  participantB: OrganizationSummary;
+  status: ConversationStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+  messages: Message[];
+};
+export type OrganizationConversationListResponse = ApiSuccess<
+  OrganizationConversationSummary[]
+>;
+export type OrganizationConversationResponse =
+  ApiSuccess<OrganizationConversationDetail>;
+export type OpenOrganizationConversationRequest = {
+  sourceOrganizationId: ResourceId;
+};
+
+export type PatientNeedConversationSummary = {
+  id: ResourceId;
+  patientNeedId: ResourceId;
+  hospitalName: string;
+  status: ConversationStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+  lastMessage?: Pick<Message, 'content' | 'createdAt' | 'senderId'>;
+};
+export type PatientNeedConversationDetail = {
+  id: ResourceId;
+  patientNeedId: ResourceId;
+  hospitalName: string;
+  status: ConversationStatus;
+  createdAt: ApiTimestamp;
+  updatedAt: ApiTimestamp;
+  messages: Message[];
+};
+export type PatientNeedConversationListResponse = ApiSuccess<
+  PatientNeedConversationSummary[]
+>;
+export type PatientNeedConversationResponse =
+  ApiSuccess<PatientNeedConversationDetail>;

@@ -6,6 +6,9 @@ import { MatchingService } from '../matching/matching.service';
 import { CommunicationService } from '../communication/communication.service';
 import { HospitalSubscriptionsService } from '../hospital-subscriptions/hospital-subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OrganizationCommunicationService } from '../communication/organization-communication.service';
+import { PatientNeedCommunicationService } from '../communication/patient-need-communication.service';
+import type { AuthenticatedPrincipal } from '../auth/auth.types';
 
 /**
  * OWNER: D4
@@ -24,6 +27,8 @@ export class D4ScaffoldService {
     private readonly communication: CommunicationService,
     private readonly subscriptions: HospitalSubscriptionsService,
     private readonly notifications: NotificationsService,
+    private readonly organizationCommunication: OrganizationCommunicationService,
+    private readonly patientNeedCommunication: PatientNeedCommunicationService,
   ) {}
 
   getDonorProfile(userId: string) {
@@ -92,8 +97,8 @@ export class D4ScaffoldService {
     return this.subscriptions.listSubscriptions(userId);
   }
 
-  listNotifications(userId: string) {
-    return this.notifications.listForIndividual(userId);
+  listNotifications(userId: string, role: AuthenticatedPrincipal['role']) {
+    return this.notifications.listForUser(userId, role);
   }
 
   getConversation(userId: string, requestId: string) {
@@ -102,5 +107,60 @@ export class D4ScaffoldService {
 
   createMessage(userId: string, requestId: string, input: { content: string }) {
     return this.communication.createMessage(userId, requestId, input);
+  }
+
+  listOrganizationConversations(userId: string) {
+    return this.organizationCommunication.listForUser(userId);
+  }
+
+  openOrganizationConversation(
+    userId: string,
+    targetOrganizationId: string,
+    sourceOrganizationId: string,
+  ) {
+    return this.organizationCommunication.openForOrganizations(
+      userId,
+      targetOrganizationId,
+      sourceOrganizationId,
+    );
+  }
+
+  getOrganizationConversation(userId: string, conversationId: string) {
+    return this.organizationCommunication.getForUser(userId, conversationId);
+  }
+
+  createOrganizationMessage(
+    userId: string,
+    conversationId: string,
+    input: { content: string },
+  ) {
+    return this.organizationCommunication.createMessage(
+      userId,
+      conversationId,
+      input,
+    );
+  }
+
+  listPatientNeedConversations(userId: string) {
+    return this.patientNeedCommunication.listForUser(userId);
+  }
+
+  getPatientNeedConversation(userId: string, patientNeedId: string) {
+    return this.patientNeedCommunication.getForPatientNeed(
+      userId,
+      patientNeedId,
+    );
+  }
+
+  createPatientNeedMessage(
+    userId: string,
+    patientNeedId: string,
+    input: { content: string },
+  ) {
+    return this.patientNeedCommunication.createMessage(
+      userId,
+      patientNeedId,
+      input,
+    );
   }
 }

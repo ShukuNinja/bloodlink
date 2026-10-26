@@ -1,4 +1,4 @@
-# Testing and Final Handoff Checklist
+> **DEPRECATED — HISTORICAL REFERENCE ONLY (2026-10-26).** Use the current [replacement document](../../quality/verification-and-release-checklist.md) and [documentation index](../../README.md). This archived snapshot may contradict the current product or implementation; it is retained for historical context.`r`n`r`n# Testing and Final Handoff Checklist
 
 ## 1. Implementation status awareness
 

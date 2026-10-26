@@ -1,38 +1,60 @@
-﻿# BloodLink â€” Developer Documentation
+# BloodLink documentation
 
-**Status:** New documentation set
-**Audience:** Incoming developer completing the BloodLink web application and API
-**Scope:** Web client + backend only. The mobile application is out of scope for this delivery.
+This directory is grouped by responsibility. The current implementation
+status and completion tracker describe this branch; archived reports are
+historical evidence and are not current instructions.
 
-## Read in this order
+## Start here
 
-1. [`PRODUCT_SCOPE_AND_DOMAIN_RULES.md`](PRODUCT_SCOPE_AND_DOMAIN_RULES.md) â€” what the product does and must not do.
-2. [`WEB_PAGE_FLOWS.md`](WEB_PAGE_FLOWS.md) â€” page-by-page user journeys, including hospital subscriptions.
-3. [`API_CONTRACTS_AND_MODULE_OWNERSHIP.md`](API_CONTRACTS_AND_MODULE_OWNERSHIP.md) â€” endpoint expectations and D2/D3/D4 ownership boundaries.
-4. [`LOCAL_DEVELOPMENT_RUNBOOK.md`](LOCAL_DEVELOPMENT_RUNBOOK.md) â€” prerequisites, environment setup, startup, and safety.
-5. [`IMPLEMENTATION_PLAN_AND_ACCEPTANCE.md`](IMPLEMENTATION_PLAN_AND_ACCEPTANCE.md) â€” implementation sequence and definition of done.
-6. [`IMPLEMENTATION_STATUS_AND_HANDOFF.md`](IMPLEMENTATION_STATUS_AND_HANDOFF.md) â€” what is implemented versus intentionally scaffolded for developer ownership.
-7. [`TESTING_AND_HANDOFF_CHECKLIST.md`](TESTING_AND_HANDOFF_CHECKLIST.md) â€” validation and final handoff requirements.
-8. [`DOCUMENTATION_DEPRECATION.md`](DOCUMENTATION_DEPRECATION.md) â€” how to retire the previous documentation set without losing history.
+- [Current implementation status](project/current-implementation-status.md)
+- [Implementation roadmap and acceptance](project/implementation-roadmap.md)
+- [Project completion guide and ChatGPT handoff prompt](PROJECT_COMPLETION_GUIDE.md)
+- [Final integration tracker](FINAL_INTEGRATION_TRACKER.md)
 
-## Project facts to verify at the start
+## Product and architecture
 
-- Repository: `https://github.com/ShukuNinja/bloodlink.git`
-- Monorepo package manager: pnpm.
-- API: NestJS/TypeScript + Prisma/PostgreSQL.
-- Web client: Next.js.
-- Web development URL: `http://localhost:3000`.
-- API development URL: `http://localhost:3001`; health endpoint previously documented as `/api/v1/health`.
-- The web client uses a same-origin `/api` proxy to the API origin, defaulting to `http://localhost:3001`.
-- The previously reported baseline was: web typecheck/lint passed, 11 web tests passed, production build passed, API typecheck passed, and 130 API tests passed. These are historical results, **not a guarantee that the current checkout still passes**. Re-run the checks after pulling the branch.
+- [Current product scope](product/current-product-scope.md)
+- [Role-based user flows](product/user-flows.md)
+- [System architecture](architecture/system-architecture.md)
+- [Domain boundaries and API responsibilities](architecture/domain-boundaries.md)
 
-## Non-negotiable working rules
+## Development, verification, and operations
 
-- Read repository-level `AGENTS.md` and the active source-of-truth documents in this documentation set before modifying code. `docs/LEAD_FOUNDATION_SPEC.md` has been intentionally retired; do not recreate or depend on it.
-- Do not reset the database, run destructive Git commands, or overwrite existing work.
-- Do not commit or push until the repository owner authorizes the specific operation.
-- Do not expose secrets from environment files.
-- Do not use Docker for the documented local workflow.
-- Do not invent API contracts to fill gaps. Verify the implementation and tests; record unresolved contract decisions.
-- A registered route does not prove that its full business workflow works end to end.
-- Keep PatientNeed separate from the official BloodRequest entity and lifecycle.
+- [Local development](development/local-development.md)
+- [Verification and release checklist](quality/verification-and-release-checklist.md)
+- [Deployment plan](operations/deployment-plan.md)
+
+## Historical documents
+
+Superseded documentation is preserved under [archive/2026-10-26](archive/2026-10-26/README.md), with a deprecation notice and a replacement link in each document. Read it only when historical context is needed; verify all facts against current code.
+
+## Source layout
+
+The codebase uses a conventional pnpm workspace monorepo. Framework-required
+route directories (`apps/web/src/app` and `apps/mobile/src/app`) stay in place;
+domain implementation is grouped under each client’s `features` directory and
+under API domain modules.
+
+```text
+apps/
+  api/       NestJS API and server-side domain modules
+  web/       Next.js routes, shared web API transport, and domain features
+  mobile/    Expo Router screens, mobile API transport, and domain features
+packages/
+  contracts/ Shared API request/response types
+  validation/Shared runtime validation schemas
+  ui/        Shared UI package
+  config/    Shared configuration package
+prisma/      PostgreSQL/PostGIS schema and ordered migrations
+docs/        Product, architecture, development, quality, operations, and project records
+```
+
+## Source-of-truth order
+
+1. Current source code, schema, registered routes, and tests establish what is implemented.
+2. `AGENTS.md` supplies repository rules. It currently requires reading `LEAD_FOUNDATION_SPEC.md`; that governance file remains protected from modification under its instruction.
+3. The current product and architecture docs here describe intended behavior and module ownership.
+4. The completion guide and tracker record the project plan and evidence.
+5. Archived docs are superseded snapshots. They cannot override current code, current user decisions, or active repository instructions.
+
+The local `LEAD_FOUNDATION_SPEC.md` file is currently present as a user-provided untracked file and was intentionally left at its required path. Its tracked status may differ on another checkout; do not silently add, alter, or remove it.

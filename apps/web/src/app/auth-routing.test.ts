@@ -45,10 +45,7 @@ describe('role-specific auth routing', () => {
     assert.equal(canAccessRoute(user('INDIVIDUAL'), '/hospitals'), true);
     assert.equal(canAccessRoute(user('INDIVIDUAL'), '/patient-needs'), true);
     assert.equal(canAccessRoute(user('INDIVIDUAL'), '/donor'), true);
-    assert.equal(
-      canAccessRoute(user('INDIVIDUAL'), '/notifications'),
-      true,
-    );
+    assert.equal(canAccessRoute(user('INDIVIDUAL'), '/notifications'), true);
     assert.equal(
       canAccessRoute(user('INDIVIDUAL'), '/hospital/patient-needs'),
       false,
@@ -67,7 +64,15 @@ describe('role-specific auth routing', () => {
     );
     assert.equal(canAccessRoute(user('ADMIN'), '/admin'), true);
     assert.equal(canAccessRoute(user('INDIVIDUAL'), '/admin'), false);
-    assert.equal(canAccessRoute(user('ADMIN'), '/notifications'), false);
+    assert.equal(canAccessRoute(user('ADMIN'), '/notifications'), true);
+    assert.equal(
+      canAccessRoute(user('INDIVIDUAL', 'HOSPITAL'), '/notifications'),
+      true,
+    );
+    assert.equal(
+      canAccessRoute(user('INDIVIDUAL', 'BLOOD_CENTRE'), '/notifications'),
+      true,
+    );
     assert.equal(
       canAccessRoute(user('INDIVIDUAL', 'HOSPITAL'), '/donor'),
       false,

@@ -4,17 +4,17 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type { HospitalSubscription } from '@bloodlink/contracts';
+import type { OrganizationSubscription } from '@bloodlink/contracts';
 import { PrismaService } from '../database/prisma.service';
 
 /**
  * OWNER: D4
- * PURPOSE: Donor-to-hospital network subscriptions.
- * ENDPOINT/METHOD: POST/DELETE /hospitals/:id/subscription,
- * GET /hospital-subscriptions.
- * AUTHORIZATION: Donor owner only; every query is scoped to the caller's
- * DonorProfile. Targets must be existing ACTIVE HOSPITAL organizations.
- * STATE CHANGES: HospitalSubscription rows (ACTIVE/PAUSED). Subscribing is
+ * PURPOSE: User-to-organization subscriptions for hospitals and blood centres.
+ * ENDPOINT/METHOD: POST/DELETE /organizations/:id/subscription,
+ * GET /organization-subscriptions.
+ * AUTHORIZATION: Authenticated user owner. Targets must be existing ACTIVE
+ * HOSPITAL or BLOOD_CENTRE organizations; individual users cannot be targets.
+ * STATE CHANGES: OrganizationSubscription rows (ACTIVE/PAUSED). Subscribing is
  * idempotent across PAUSED rows; duplicates are rejected. Unsubscribing
  * removes the row.
  * NON-RESPONSIBILITIES: Device push subscriptions, matching, notifications.
@@ -23,26 +23,29 @@ import { PrismaService } from '../database/prisma.service';
 export class HospitalSubscriptionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async subscribe(userId: string, hospitalId: string) {
-    await this.requireActiveHospital(hospitalId);
+  async subscribe(userId: string, organizationId: string) {
+    await this.requireActiveOrganization(organizationId);
 
-    const existing = await this.prisma.hospitalSubscription.findFirst({
-      where: { hospitalId, userId },
+    const existing = await this.prisma.organizationSubscription.findFirst({
+      where: { organizationId, userId },
+      include: { organization: { select: { name: true, type: true } } },
     });
     if (existing && existing.status === 'ACTIVE') {
       throw new ConflictException('Subscription already exists');
     }
     if (existing) {
-      const reactivated = await this.prisma.hospitalSubscription.update({
+      const reactivated = await this.prisma.organizationSubscription.update({
         where: { id: existing.id },
         data: { status: 'ACTIVE' },
+        include: { organization: { select: { name: true, type: true } } },
       });
       return toSubscription(reactivated);
     }
 
     try {
-      const created = await this.prisma.hospitalSubscription.create({
-        data: { hospitalId, userId, status: 'ACTIVE' },
+      const created = await this.prisma.organizationSubscription.create({
+        data: { organizationId, userId, status: 'ACTIVE' },
+        include: { organization: { select: { name: true, type: true } } },
       });
       return toSubscription(created);
     } catch (error) {
@@ -54,35 +57,36 @@ export class HospitalSubscriptionsService {
   }
 
   /** DELETE semantics: removing a missing subscription is a 404. */
-  async unsubscribe(userId: string, hospitalId: string): Promise<void> {
-    const existing = await this.prisma.hospitalSubscription.findFirst({
-      where: { hospitalId, userId },
+  async unsubscribe(userId: string, organizationId: string): Promise<void> {
+    const existing = await this.prisma.organizationSubscription.findFirst({
+      where: { organizationId, userId },
     });
     if (!existing) throw new NotFoundException('Subscription not found');
-    await this.prisma.hospitalSubscription.delete({
+    await this.prisma.organizationSubscription.delete({
       where: { id: existing.id },
     });
   }
 
   async listSubscriptions(userId: string) {
-    const rows = await this.prisma.hospitalSubscription.findMany({
+    const rows = await this.prisma.organizationSubscription.findMany({
       where: { userId },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      include: { organization: { select: { name: true, type: true } } },
     });
     return rows.map(toSubscription);
   }
 
-  private async requireActiveHospital(hospitalId: string) {
+  private async requireActiveOrganization(organizationId: string) {
     const organization = await this.prisma.organization.findUnique({
-      where: { id: hospitalId },
+      where: { id: organizationId },
       select: { id: true, type: true, status: true },
     });
     if (
       !organization ||
-      organization.type !== 'HOSPITAL' ||
+      !['HOSPITAL', 'BLOOD_CENTRE'].includes(organization.type) ||
       organization.status !== 'ACTIVE'
     ) {
-      throw new UnprocessableEntityException('Hospital is not eligible');
+      throw new UnprocessableEntityException('Organization is not eligible');
     }
     return organization;
   }
@@ -90,15 +94,19 @@ export class HospitalSubscriptionsService {
 
 function toSubscription(row: {
   id: string;
-  hospitalId: string;
+  organizationId: string;
   status: string;
   createdAt: Date;
   updatedAt: Date;
-}): HospitalSubscription {
+  organization: { name: string; type: string };
+}): OrganizationSubscription {
   return {
     id: row.id,
-    hospitalId: row.hospitalId,
-    status: row.status as HospitalSubscription['status'],
+    organizationId: row.organizationId,
+    organizationName: row.organization.name,
+    organizationType: row.organization
+      .type as OrganizationSubscription['organizationType'],
+    status: row.status as OrganizationSubscription['status'],
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

@@ -1,4 +1,4 @@
-# BloodLink Integration Progress Log
+> **DEPRECATED — HISTORICAL REFERENCE ONLY (2026-10-26).** Use the current [replacement document](../../project/current-implementation-status.md) and [documentation index](../../README.md). This archived snapshot may contradict the current product or implementation; it is retained for historical context.`r`n`r`n# BloodLink Integration Progress Log
 
 Last updated: 2026-10-11
 Working branch: `integration`

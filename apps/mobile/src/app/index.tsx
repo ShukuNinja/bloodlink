@@ -19,6 +19,18 @@ export default function HomeScreen() {
         <Link style={appStyles.linkText} href="/hospitals">
           Find a nearby hospital
         </Link>
+        <Link style={appStyles.linkText} href="/organizations">
+          Find hospitals and blood banks
+        </Link>
+        <Link style={appStyles.linkText} href="/conversations">
+          Conversations
+        </Link>
+        <Link style={appStyles.linkText} href="/subscriptions">
+          Subscribed organizations
+        </Link>
+        <Link style={appStyles.linkText} href="/notifications">
+          Request alerts
+        </Link>
         <Link style={appStyles.linkText} href="/patient-needs/new">
           Submit a patient need
         </Link>

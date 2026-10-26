@@ -5,12 +5,12 @@
  * OWNER: D4
  * PURPOSE: End-to-end behavior for the D4 coordination boundary — donor
  * profiles, donor/organization responses, matching and hospital
- * subscriptions, notification composition/tiering, request-scoped
+ * organization subscriptions, notification composition/tiering, request-scoped
  * communication, and the donation/D3 ownership boundary.
  * ENDPOINT/METHOD: GET/PATCH /donor-profile, GET /donor/blood-requests[/:id],
  * POST /blood-requests/:id/accept|withdraw, GET /blood-centre/blood-requests[/:id],
  * POST /blood-requests/:id/organization-response[/withdraw],
- * POST/DELETE /hospitals/:id/subscription, GET /hospital-subscriptions,
+ * POST/DELETE /organizations/:id/subscription, GET /organization-subscriptions,
  * GET /blood-requests/:id/conversation, POST /blood-requests/:id/messages.
  * INPUT: Authenticated HTTP requests against the compiled Nest application.
  * OUTPUT: Verified state transitions, authorization, privacy boundaries,
@@ -1004,15 +1004,16 @@ describe.skip('D4 legacy profile-based matching and PostGIS', () => {
   });
 });
 
-describe('D4 hospital subscriptions and notifications', () => {
-  it('creates one donor/hospital subscription relationship', async () => {
+describe('D4 organization subscriptions and notifications', () => {
+  it('creates one user/organization subscription relationship', async () => {
     const response = await post(
       `/hospitals/${cityHospitalId}/subscription`,
       doraToken,
     );
     assert.equal(response.status, 201);
     const body = await response.json();
-    assert.equal(body.data.hospitalId, cityHospitalId);
+    assert.equal(body.data.organizationId, cityHospitalId);
+    assert.equal(body.data.organizationType, 'HOSPITAL');
     assert.equal(body.data.status, 'ACTIVE');
     assert.equal(
       store.hospitalSubscriptions.filter(
@@ -1028,24 +1029,32 @@ describe('D4 hospital subscriptions and notifications', () => {
         .status,
       201,
     );
+    const centreSubscription = await post(
+      `/organizations/${riverCentreId}/subscription`,
+      doraToken,
+    );
+    assert.equal(centreSubscription.status, 201);
     assert.equal(
-      (await post(`/hospitals/${riverCentreId}/subscription`, doraToken))
-        .status,
-      422,
-      'blood centres are not subscribable hospitals',
+      (await centreSubscription.json()).data.organizationType,
+      'BLOOD_CENTRE',
     );
     assert.equal(
-      (await post(`/hospitals/${suspendedHospitalId}/subscription`, doraToken))
-        .status,
+      (
+        await post(
+          `/organizations/${suspendedHospitalId}/subscription`,
+          doraToken,
+        )
+      ).status,
       422,
       'suspended hospitals are ineligible',
     );
     assert.equal(
-      (await post(`/hospitals/${randomUUID()}/subscription`, doraToken)).status,
+      (await post(`/organizations/${randomUUID()}/subscription`, doraToken))
+        .status,
       422,
     );
     assert.equal(
-      (await post('/hospitals/not-a-uuid/subscription', doraToken)).status,
+      (await post('/organizations/not-a-uuid/subscription', doraToken)).status,
       400,
     );
   });
@@ -1112,15 +1121,15 @@ describe('D4 hospital subscriptions and notifications', () => {
       201,
     );
     const doraList = await (
-      await authed(doraToken, '/hospital-subscriptions')
+      await authed(doraToken, '/organization-subscriptions')
     ).json();
     const quinnList = await (
-      await authed(quinnToken, '/hospital-subscriptions')
+      await authed(quinnToken, '/organization-subscriptions')
     ).json();
-    const doraHospitals = doraList.data.map((row) => row.hospitalId);
-    assert.ok(doraHospitals.includes(cityHospitalId));
+    const doraOrganizations = doraList.data.map((row) => row.organizationId);
+    assert.ok(doraOrganizations.includes(cityHospitalId));
     const quinnCity = quinnList.data.find(
-      (row) => row.hospitalId === cityHospitalId,
+      (row) => row.organizationId === cityHospitalId,
     );
     assert.ok(quinnCity, 'quinn sees her new City subscription');
     assert.equal(quinnCity.status, 'ACTIVE');
@@ -2397,6 +2406,50 @@ function MemoryD4Store() {
       const [removed] = this.hospitalSubscriptions.splice(index, 1);
       return removed;
     },
+  };
+
+  const includeOrganization = (row) => {
+    const organization = this.organizations.find(
+      (candidate) => candidate.id === row.hospitalId,
+    );
+    return {
+      ...row,
+      organizationId: row.hospitalId,
+      organization: {
+        name: organization?.name ?? 'Test organization',
+        type: organization?.type ?? 'HOSPITAL',
+      },
+    };
+  };
+
+  this.organizationSubscription = {
+    findFirst: async ({ where }) => {
+      const row = this.hospitalSubscriptions.find((subscription) =>
+        matches(subscription, {
+          hospitalId: where.organizationId,
+          userId: where.userId,
+        }),
+      );
+      return row ? includeOrganization(row) : null;
+    },
+    findMany: async ({ where, orderBy = [] }) =>
+      sortRows(
+        this.hospitalSubscriptions
+          .map(includeOrganization)
+          .filter((subscription) => matches(subscription, where)),
+        orderBy,
+      ),
+    create: async ({ data }) => {
+      const row = await this.hospitalSubscription.create({
+        data: { ...data, hospitalId: data.organizationId },
+      });
+      return includeOrganization(row);
+    },
+    update: async ({ where, data }) => {
+      const row = await this.hospitalSubscription.update({ where, data });
+      return includeOrganization(row);
+    },
+    delete: this.hospitalSubscription.delete,
   };
 
   this.conversation = {

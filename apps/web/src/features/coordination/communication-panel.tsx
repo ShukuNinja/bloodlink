@@ -8,27 +8,41 @@ import type { ConversationDetail } from '@bloodlink/contracts';
 
 export function CommunicationPanel({ requestId }: { requestId: string }) {
   const { user } = useAuthSession();
-  const [conversation, setConversation] =
-    useState<ConversationDetail | null>(null);
+  const [conversation, setConversation] = useState<ConversationDetail | null>(
+    null,
+  );
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
   async function loadConversation() {
     setLoading(true);
     setError(null);
+    setUnavailable(false);
     try {
       const result = await communicationApi.getConversation(requestId);
       setConversation(result.data);
     } catch (cause) {
-      setError(
-        cause instanceof ApiClientError && cause.status === 404
-          ? 'The hospital makes this conversation available after selecting a responder.'
-          : cause instanceof ApiClientError
+      if (cause instanceof ApiClientError && cause.status === 404) {
+        setUnavailable(true);
+        const message =
+          user?.role === 'INDIVIDUAL'
+            ? 'Hospitals and blood banks cannot contact individuals outside an active blood request. This chat opens only for a selected responder.'
+            : user?.organizations.some(
+                  (organization) => organization.type === 'HOSPITAL',
+                )
+              ? 'Direct contact with individuals is unavailable. This request chat opens after you select a responder.'
+              : 'This request chat opens after the hospital selects your response and remains available while the request is active.';
+        setError(message);
+      } else {
+        setError(
+          cause instanceof ApiClientError
             ? cause.message
             : 'Could not load this request conversation.',
-      );
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -45,11 +59,19 @@ export function CommunicationPanel({ requestId }: { requestId: string }) {
       setContent('');
       await loadConversation();
     } catch (cause) {
-      setError(
-        cause instanceof ApiClientError
-          ? cause.message
-          : 'Could not send this message.',
-      );
+      if (cause instanceof ApiClientError && cause.status === 404) {
+        setConversation(null);
+        setUnavailable(true);
+        setError(
+          'This request is closed, so its conversation is no longer available.',
+        );
+      } else {
+        setError(
+          cause instanceof ApiClientError
+            ? cause.message
+            : 'Could not send this message.',
+        );
+      }
     } finally {
       setSending(false);
     }
@@ -58,15 +80,7 @@ export function CommunicationPanel({ requestId }: { requestId: string }) {
   return (
     <section className="card" aria-label="Request conversation">
       <h3>Request conversation</h3>
-      {!conversation ? (
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void loadConversation()}
-        >
-          {loading ? 'Opening conversation…' : 'Open conversation'}
-        </button>
-      ) : (
+      {conversation ? (
         <>
           <ol aria-live="polite">
             {conversation.messages.map((message) => (
@@ -113,8 +127,21 @@ export function CommunicationPanel({ requestId }: { requestId: string }) {
             Refresh messages
           </button>
         </>
-      )}
-      {error ? (
+      ) : !unavailable ? (
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => void loadConversation()}
+        >
+          {loading ? 'Opening conversation…' : 'Open conversation'}
+        </button>
+      ) : null}
+      {unavailable ? (
+        <div className="alert" role="status">
+          {error}
+        </div>
+      ) : null}
+      {error && !unavailable ? (
         <div className="alert error" role="alert">
           {error}{' '}
           {!conversation ? (
