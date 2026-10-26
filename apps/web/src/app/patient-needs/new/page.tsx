@@ -31,6 +31,7 @@ function NewPatientNeedForm() {
 
   const [bloodGroup, setBloodGroup] =
     useState<PatientNeedBloodGroup>('O_POSITIVE');
+  const [patientName, setPatientName] = useState('');
   const [component, setComponent] =
     useState<PatientNeedComponent>('WHOLE_BLOOD');
   const [units, setUnits] = useState('1');
@@ -58,6 +59,7 @@ function NewPatientNeedForm() {
 
     await create({
       hospitalId,
+      patientName,
       bloodGroup,
       component,
       units: unitsNumber,
@@ -130,6 +132,17 @@ function NewPatientNeedForm() {
         ) : null}
 
         <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label htmlFor="patientName">Patient name</label>
+            <input
+              id="patientName"
+              value={patientName}
+              onChange={(event) => setPatientName(event.target.value)}
+              maxLength={120}
+              autoComplete="off"
+              required
+            />
+          </div>
           <div className="row">
             <div className="field">
               <label htmlFor="bloodGroup">Blood group</label>

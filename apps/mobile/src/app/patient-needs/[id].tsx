@@ -84,6 +84,7 @@ export default function PatientNeedDetailScreen() {
           <Text style={{ fontWeight: '700', marginBottom: 6 }}>
             {STATUS_LABELS[displayed.status]}
           </Text>
+          <Text>Patient name: {displayed.patientName || 'Not provided'}</Text>
           <Text>Blood group: {BLOOD_GROUP_LABELS[displayed.bloodGroup]}</Text>
           <Text>Component: {COMPONENT_LABELS[displayed.component]}</Text>
           <Text>Units: {displayed.units}</Text>

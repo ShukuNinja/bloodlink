@@ -8,6 +8,7 @@ import { appStyles } from './styles';
 export default function AuthScreen() {
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -18,7 +19,7 @@ export default function AuthScreen() {
     setError(null);
     try {
       if (mode === 'register') {
-        await authApi.register({ email, password });
+        await authApi.register({ name, email, password });
       } else {
         await authApi.login({ email, password });
       }
@@ -44,6 +45,19 @@ export default function AuthScreen() {
       ) : null}
 
       <View style={appStyles.card}>
+        {mode === 'register' ? (
+          <>
+            <Text style={appStyles.label}>Your name</Text>
+            <TextInput
+              style={appStyles.input}
+              value={name}
+              onChangeText={setName}
+              autoComplete="name"
+              maxLength={120}
+              placeholder="Full name"
+            />
+          </>
+        ) : null}
         <Text style={appStyles.label}>Email</Text>
         <TextInput
           style={appStyles.input}
@@ -64,7 +78,7 @@ export default function AuthScreen() {
         />
         <Pressable
           style={appStyles.primaryButton}
-          disabled={submitting}
+          disabled={submitting || (mode === 'register' && !name.trim())}
           onPress={() => void handleSubmit()}
         >
           <Text style={appStyles.buttonText}>

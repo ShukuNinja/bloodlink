@@ -2,6 +2,7 @@ import type { PlatformRole, UserStatus } from '@bloodlink/contracts';
 
 export type AuthenticatedPrincipal = {
   id: string;
+  name: string | null;
   email: string;
   status: UserStatus;
   role: PlatformRole;

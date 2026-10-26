@@ -28,6 +28,7 @@ export default function NewPatientNeedScreen() {
 
   const [bloodGroup, setBloodGroup] =
     useState<PatientNeedBloodGroup>('O_POSITIVE');
+  const [patientName, setPatientName] = useState('');
   const [component, setComponent] =
     useState<PatientNeedComponent>('WHOLE_BLOOD');
   const [units, setUnits] = useState('1');
@@ -58,6 +59,7 @@ export default function NewPatientNeedScreen() {
 
     await create({
       hospitalId,
+      patientName,
       bloodGroup,
       component,
       units: unitsNumber,
@@ -137,6 +139,14 @@ export default function NewPatientNeedScreen() {
       ) : null}
 
       <View style={appStyles.card}>
+        <Text style={appStyles.label}>Patient name</Text>
+        <TextInput
+          style={appStyles.input}
+          value={patientName}
+          onChangeText={setPatientName}
+          maxLength={120}
+          placeholder="Name of the patient"
+        />
         <Text style={appStyles.label}>Blood group</Text>
         <View style={appStyles.row}>
           {BLOOD_GROUPS.map((value) => (
@@ -219,7 +229,7 @@ export default function NewPatientNeedScreen() {
 
         <Pressable
           style={appStyles.primaryButton}
-          disabled={!hospitalId || submitting}
+          disabled={!hospitalId || !patientName.trim() || submitting}
           onPress={() => void handleSubmit()}
         >
           <Text style={appStyles.buttonText}>

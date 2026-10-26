@@ -36,6 +36,7 @@ export class PatientNeedRepository {
       data: {
         submittedByUserId: command.submittedByUserId,
         hospitalId: command.hospitalId,
+        patientName: command.patientName,
         bloodGroup: command.bloodGroup,
         component: command.component,
         units: command.units,

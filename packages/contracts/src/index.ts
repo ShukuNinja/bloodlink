@@ -49,6 +49,7 @@ export type OrganizationMembershipStatus = 'ACTIVE' | 'SUSPENDED' | 'REVOKED';
 
 export type AuthUser = {
   id: ResourceId;
+  name: string | null;
   email: string;
   status: UserStatus;
   role: PlatformRole;
@@ -136,6 +137,7 @@ export type AdminOrganizationListResponse = ApiSuccessWithMeta<
 >;
 
 export type RegisterInput = {
+  name?: string;
   email: string;
   password: string;
   accountType?: 'INDIVIDUAL' | 'ADMIN' | 'HOSPITAL' | 'BLOOD_CENTRE';
@@ -143,7 +145,9 @@ export type RegisterInput = {
   location?: { latitude: number; longitude: number };
 };
 
-export type LoginInput = RegisterInput;
+export type UpdateAccountNameRequest = { name: string };
+
+export type LoginInput = Pick<RegisterInput, 'email' | 'password'>;
 
 export type RefreshInput = {
   refreshToken: string;
@@ -171,6 +175,7 @@ export type PatientNeedStatus =
 
 export type CreatePatientNeedRequest = {
   hospitalId: ResourceId;
+  patientName: string;
   bloodGroup: PatientNeedBloodGroup;
   component: PatientNeedComponent;
   units: number;
@@ -182,6 +187,7 @@ export type CreatePatientNeedRequest = {
 export type PatientNeedRecord = {
   id: ResourceId;
   hospitalId: ResourceId;
+  patientName: string | null;
   bloodGroup: PatientNeedBloodGroup;
   component: PatientNeedComponent;
   units: number;

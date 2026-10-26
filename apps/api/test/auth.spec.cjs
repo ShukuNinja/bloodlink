@@ -56,6 +56,7 @@ after(async () => {
 describe('authentication endpoints', () => {
   it('registers normalized email and returns no password hash', async () => {
     const response = await post('/auth/register', {
+      name: 'Test User',
       email: '  Test.User@Example.COM ',
       password: 'a-safe-test-password',
     });
@@ -67,6 +68,7 @@ describe('authentication endpoints', () => {
     assert.equal(response.status, 201);
     assert.deepEqual(body.data.user, {
       id: user.id,
+      name: 'Test User',
       email: 'test.user@example.com',
       status: 'ACTIVE',
       role: 'INDIVIDUAL',
@@ -225,11 +227,33 @@ describe('authentication endpoints', () => {
     assert.equal(authenticated.status, 200);
     assert.deepEqual((await authenticated.json()).data, {
       id: store.users[0].id,
+      name: 'Test User',
       email: 'test.user@example.com',
       status: 'ACTIVE',
       role: 'INDIVIDUAL',
       organizations: [],
     });
+  });
+
+  it('lets an authenticated user update the name shown in their session', async () => {
+    const login = await post('/auth/login', {
+      email: 'test.user@example.com',
+      password: 'a-safe-test-password',
+    });
+    const tokens = (await login.json()).data;
+    const response = await fetch(`${baseUrl}/api/v1/auth/me`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: 'Updated Test User' }),
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.data.name, 'Updated Test User');
+    assert.equal(store.users[0].name, 'Updated Test User');
   });
 
   it('rotates refresh tokens and rejects a used token', async () => {
@@ -528,6 +552,12 @@ function MemoryAuthStore() {
         ...data,
       };
       this.users.push(user);
+      return user;
+    },
+    update: async ({ where, data }) => {
+      const user = this.users.find((candidate) => candidate.id === where.id);
+      if (!user) throw new Error('User not found');
+      Object.assign(user, data, { updatedAt: new Date() });
       return user;
     },
   };

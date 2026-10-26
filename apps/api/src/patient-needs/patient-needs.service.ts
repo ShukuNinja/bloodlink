@@ -113,6 +113,7 @@ export function toPatientNeedRecord(row: PatientNeedRow): PatientNeedRecord {
   return {
     id: row.id,
     hospitalId: row.hospitalId,
+    patientName: row.patientName,
     bloodGroup: row.bloodGroup,
     component: row.component,
     units: row.units,

@@ -77,6 +77,10 @@ export default function PatientNeedDetailPage({
           <table className="table">
             <tbody>
               <tr>
+                <th>Patient name</th>
+                <td>{displayed.patientName || 'Not provided'}</td>
+              </tr>
+              <tr>
                 <th>Blood group</th>
                 <td>{BLOOD_GROUP_LABELS[displayed.bloodGroup]}</td>
               </tr>

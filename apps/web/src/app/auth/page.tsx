@@ -19,6 +19,7 @@ export default function AuthPage() {
     'INDIVIDUAL' | 'HOSPITAL' | 'BLOOD_CENTRE' | 'ADMIN'
   >('INDIVIDUAL');
   const [organizationName, setOrganizationName] = useState('');
+  const [name, setName] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [locating, setLocating] = useState(false);
@@ -48,6 +49,7 @@ export default function AuthPage() {
       const response =
         mode === 'register'
           ? await authApi.register({
+              name,
               email,
               password,
               accountType,
@@ -115,13 +117,26 @@ export default function AuthPage() {
             />
           </div>
         ) : null}
+        {mode === 'register' ? (
+          <div className="field">
+            <label htmlFor="account-name">Your name</label>
+            <input
+              id="account-name"
+              required
+              maxLength={120}
+              autoComplete="name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+        ) : null}
         {mode === 'register' &&
         (accountType === 'HOSPITAL' || accountType === 'BLOOD_CENTRE') ? (
           <fieldset className="field">
             <legend>Organization location</legend>
             <p className="muted">
-              Coordinates help people find this organization. Enter its
-              location or use the device location while at the organization.
+              Coordinates help people find this organization. Enter its location
+              or use the device location while at the organization.
             </p>
             <div className="row">
               <label htmlFor="organization-latitude">Latitude</label>

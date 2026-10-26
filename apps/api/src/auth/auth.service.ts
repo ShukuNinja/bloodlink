@@ -27,6 +27,7 @@ const dummyPasswordHash = bcrypt.hash(randomUUID(), BCRYPT_ROUNDS);
 
 type UserRecord = {
   id: string;
+  name: string | null;
   email: string;
   passwordHash: string;
   role: PlatformRole;
@@ -59,6 +60,7 @@ export class AuthService {
       user = await this.prisma.$transaction(async (transaction) => {
         const createdUser = await transaction.user.create({
           data: {
+            name: input.name?.trim() || null,
             email,
             passwordHash,
             role: accountType === 'ADMIN' ? 'ADMIN' : 'INDIVIDUAL',
@@ -182,10 +184,19 @@ export class AuthService {
 
     return {
       id: user.id,
+      name: user.name,
       email: user.email,
       status: user.status,
       role: user.role,
     };
+  }
+
+  async updateAccountName(userId: string, name: string): Promise<AuthUser> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name: name.trim() },
+    });
+    return this.toAuthUser(user);
   }
 
   async userHasRole(
@@ -251,7 +262,7 @@ export class AuthService {
   }
 
   async toAuthUser(
-    user: Pick<UserRecord, 'id' | 'email' | 'status' | 'role'>,
+    user: Pick<UserRecord, 'id' | 'name' | 'email' | 'status' | 'role'>,
   ): Promise<AuthUser> {
     const memberships = await this.prisma.organizationMembership.findMany({
       where: {
@@ -268,6 +279,7 @@ export class AuthService {
     });
     return {
       id: user.id,
+      name: user.name?.trim() || null,
       email: user.email,
       status: user.status,
       role: user.role,

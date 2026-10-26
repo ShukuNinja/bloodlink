@@ -143,6 +143,7 @@ describe('POST /patient-needs', () => {
     const record = body.data;
     assert.match(record.id, /^[0-9a-f-]{36}$/i);
     assert.equal(record.hospitalId, cityHospitalId);
+    assert.equal(record.patientName, 'Sample Patient');
     assert.equal(record.bloodGroup, 'O_NEGATIVE');
     assert.equal(record.component, 'RED_BLOOD_CELLS');
     assert.equal(record.units, 2);
@@ -192,6 +193,10 @@ describe('POST /patient-needs', () => {
       {
         name: 'missing hospitalId',
         payload: omit(validCreatePayload(), 'hospitalId'),
+      },
+      {
+        name: 'missing patientName',
+        payload: omit(validCreatePayload(), 'patientName'),
       },
       {
         name: 'non-uuid hospitalId',
@@ -562,6 +567,7 @@ describe('D2 domain boundary', () => {
 function validCreatePayload() {
   return {
     hospitalId: cityHospitalId,
+    patientName: 'Sample Patient',
     bloodGroup: 'O_NEGATIVE',
     component: 'RED_BLOOD_CELLS',
     units: 2,

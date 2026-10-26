@@ -8,8 +8,10 @@ import { organizationsApi } from '@/features/organizations/api';
 
 export function PatientNeedConversationPanel({
   patientNeedId,
+  id,
 }: {
   patientNeedId: string;
+  id?: string;
 }) {
   const { user } = useAuthSession();
   const [conversation, setConversation] =
@@ -73,13 +75,20 @@ export function PatientNeedConversationPanel({
 
   return (
     <section
+      id={id}
       className="card patient-need-conversation"
       aria-label="Patient need conversation"
     >
       <header className="conversation-thread-heading">
         <div>
           <p className="workflow-eyebrow">REQUEST COORDINATION</p>
-          <h2>Chat with {conversation?.hospitalName ?? 'the hospital'}</h2>
+          <h2>
+            {user?.organizations.some(
+              (organization) => organization.type === 'HOSPITAL',
+            )
+              ? 'Chat with the requester'
+              : `Chat with ${conversation?.hospitalName ?? 'the hospital'}`}
+          </h2>
         </div>
         {conversation ? (
           <span className="badge neutral">{conversation.status}</span>

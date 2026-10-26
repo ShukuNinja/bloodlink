@@ -147,7 +147,7 @@ function AppNavigation() {
               <Link href="/blood-centre">Blood bank workspace</Link>
             ) : null}
             {user?.role === 'ADMIN' ? <Link href="/admin">Admin</Link> : null}
-            <span className="muted">{user?.email}</span>
+            <Link href="/profile">{user?.name || 'Add your name'}</Link>
             <button type="button" onClick={() => void handleSignOut()}>
               Sign out
             </button>
@@ -176,6 +176,7 @@ function AuthGate({ children }: { children: ReactNode }) {
   const protectedRoute =
     pathname === '/hospitals' ||
     pathname.startsWith('/organizations') ||
+    pathname.startsWith('/profile') ||
     pathname.startsWith('/conversations') ||
     pathname.startsWith('/subscriptions') ||
     pathname.startsWith('/donor') ||

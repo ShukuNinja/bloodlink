@@ -37,6 +37,13 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
   return envelope.data;
 }
 
+export async function updateAccountName(name: string): Promise<AuthUser> {
+  const envelope = await apiRequest<ApiSuccess<AuthUser>>('PATCH', '/auth/me', {
+    body: { name },
+  });
+  return envelope.data;
+}
+
 export function signOut(): void {
   clearAccessToken();
 }

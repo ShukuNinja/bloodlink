@@ -3,6 +3,7 @@ import type {
   AuthUser,
   LoginInput,
   RegisterInput,
+  UpdateAccountNameRequest,
 } from '@bloodlink/contracts';
 import type { ApiSuccess } from '@bloodlink/contracts';
 import {
@@ -35,6 +36,15 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
 
 export async function fetchCurrentUser(): Promise<AuthUser> {
   const envelope = await apiRequest<ApiSuccess<AuthUser>>('GET', '/auth/me');
+  return envelope.data;
+}
+
+export async function updateAccountName(
+  input: UpdateAccountNameRequest,
+): Promise<AuthUser> {
+  const envelope = await apiRequest<ApiSuccess<AuthUser>>('PATCH', '/auth/me', {
+    body: input,
+  });
   return envelope.data;
 }
 

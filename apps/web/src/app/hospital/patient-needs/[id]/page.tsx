@@ -120,6 +120,13 @@ export default function HospitalPatientNeedDetailPage({
           </Link>
         </p>
       ) : null}
+      {record?.status === 'VERIFIED' ? (
+        <p>
+          <a className="btn-link primary" href="#patient-need-conversation">
+            Message the requester
+          </a>
+        </p>
+      ) : null}
       {record ? (
         <div className="card">
           <p>
@@ -129,6 +136,10 @@ export default function HospitalPatientNeedDetailPage({
           </p>
           <table className="table">
             <tbody>
+              <tr>
+                <th>Patient name</th>
+                <td>{record.patientName || 'Not provided'}</td>
+              </tr>
               <tr>
                 <th>Hospital</th>
                 <td>{record.hospitalId}</td>
@@ -186,7 +197,10 @@ export default function HospitalPatientNeedDetailPage({
         </div>
       ) : null}
       {record?.status === 'VERIFIED' ? (
-        <PatientNeedConversationPanel patientNeedId={id} />
+        <PatientNeedConversationPanel
+          patientNeedId={id}
+          id="patient-need-conversation"
+        />
       ) : null}
     </main>
   );

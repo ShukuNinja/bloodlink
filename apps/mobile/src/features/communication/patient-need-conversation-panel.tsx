@@ -74,7 +74,7 @@ export function PatientNeedConversationPanel({
 
   return (
     <View style={appStyles.card}>
-      <Text style={appStyles.title}>Hospital request chat</Text>
+      <Text style={appStyles.title}>Patient request conversation</Text>
       {loading ? <ActivityIndicator /> : null}
       {waiting ? (
         <Text style={appStyles.muted}>

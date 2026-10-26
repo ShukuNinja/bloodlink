@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Patch,
   UseGuards,
 } from '@nestjs/common';
 import type {
@@ -18,6 +19,7 @@ import {
   logoutInputSchema,
   refreshInputSchema,
   registerInputSchema,
+  updateAccountNameSchema,
 } from '@bloodlink/validation';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -60,5 +62,15 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedPrincipal) {
     return this.auth.toAuthUser(user);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  updateAccountName(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Body(new ZodValidationPipe(updateAccountNameSchema))
+    input: { name: string },
+  ) {
+    return this.auth.updateAccountName(user.id, input.name);
   }
 }

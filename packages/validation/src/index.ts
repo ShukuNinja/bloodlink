@@ -16,6 +16,7 @@ import type {
   OpenOrganizationConversationRequest,
   CreatePushSubscriptionRequest,
   AdminRecordListQuery,
+  UpdateAccountNameRequest,
 } from '@bloodlink/contracts';
 export { z, ZodError } from 'zod';
 export type { ZodIssue, ZodType } from 'zod';
@@ -32,6 +33,7 @@ export const passwordSchema = z
 
 export const registerInputSchema: z.ZodType<RegisterInput> = z
   .strictObject({
+    name: z.string().trim().min(1).max(120).optional(),
     email: emailSchema,
     password: passwordSchema,
     accountType: z
@@ -84,6 +86,9 @@ export const loginInputSchema: z.ZodType<LoginInput> = z.strictObject({
   password: passwordSchema,
 });
 
+export const updateAccountNameSchema: z.ZodType<UpdateAccountNameRequest> =
+  z.strictObject({ name: z.string().trim().min(1).max(120) });
+
 export const refreshInputSchema: z.ZodType<RefreshInput> = z.strictObject({
   refreshToken: z.string().min(1).max(8192),
 });
@@ -99,6 +104,7 @@ export const adminRecordListQuerySchema: z.ZodType<AdminRecordListQuery> =
 export const CreatePatientNeedSchema: z.ZodType<CreatePatientNeedRequest> =
   z.strictObject({
     hospitalId: z.string().min(1),
+    patientName: z.string().trim().min(1).max(120),
     bloodGroup: z.enum([
       'A_POSITIVE',
       'A_NEGATIVE',

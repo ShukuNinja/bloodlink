@@ -133,6 +133,7 @@ enum PushPlatform {
 
 model User {
   id                        String                            @id @default(uuid()) @db.Uuid
+  name                      String?                           @db.VarChar(120)
   email                     String                            @unique @db.VarChar(320)
   passwordHash              String                            @db.VarChar(255)
   role                      UserRole                          @default(INDIVIDUAL)
@@ -154,6 +155,7 @@ model User {
   confirmedDonations        DonationRecord[]
 }
 
+// The case-insensitive trimmed-name index is maintained by migration SQL.
 model Organization {
   id                           String                                @id @default(uuid()) @db.Uuid
   name                         String                                @db.VarChar(255)
@@ -204,6 +206,7 @@ model PatientNeed {
   id                String                   @id @default(uuid()) @db.Uuid
   submittedByUserId String                   @db.Uuid
   hospitalId        String                   @db.Uuid
+  patientName       String?                  @db.VarChar(120)
   bloodGroup        PatientNeedBloodGroup
   component         PatientNeedComponent
   units             Int
@@ -367,7 +370,7 @@ model OrganizationConversation {
   participantB               Organization                      @relation("OrgConversationB", fields: [participantBOrganizationId], references: [id], onDelete: Cascade)
   messages                   OrganizationConversationMessage[]
 
-  @@unique([participantAOrganizationId, participantBOrganizationId])
+  @@unique([participantAOrganizationId, participantBOrganizationId], map: "OrganizationConversation_participantAOrganizationId_participant")
   @@index([participantAOrganizationId, status])
   @@index([participantBOrganizationId, status])
 }

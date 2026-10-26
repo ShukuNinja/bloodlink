@@ -121,6 +121,7 @@ export default function HospitalPatientNeedsPage() {
             <thead>
               <tr>
                 <th>Submitted</th>
+                <th>Patient</th>
                 <th>Blood group</th>
                 <th>Component</th>
                 <th>Units</th>
@@ -132,6 +133,7 @@ export default function HospitalPatientNeedsPage() {
               {records.map((record) => (
                 <tr key={record.id}>
                   <td>{formatTimestamp(record.createdAt)}</td>
+                  <td>{record.patientName || 'Not provided'}</td>
                   <td>{BLOOD_GROUP_LABELS[record.bloodGroup]}</td>
                   <td>{COMPONENT_LABELS[record.component]}</td>
                   <td>{record.units}</td>

@@ -1,15 +1,18 @@
 import { StyleSheet } from 'react-native';
 
 export const colors = {
-  ink: '#16181d',
-  muted: '#5c6470',
-  line: '#d8dce3',
-  surface: '#f6f7f9',
-  card: '#ffffff',
+  ink: '#15171c',
+  muted: '#6b707b',
+  line: '#d9d8d0',
+  surface: '#f6f5f1',
+  card: '#fdfdfb',
   accent: '#b3261e',
   accentStrong: '#8f1d17',
   ok: '#1c6b3c',
-  warn: '#9a6700',
+  warn: '#c98a0b',
+  warnWash: '#fdf4e1',
+  successWash: '#e9f5ee',
+  accentWash: '#fbeceb',
 };
 
 export const appStyles = StyleSheet.create({
@@ -32,7 +35,7 @@ export const appStyles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 4,
     padding: 14,
     marginBottom: 12,
   },
@@ -46,7 +49,7 @@ export const appStyles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 8,
+    borderRadius: 4,
     paddingHorizontal: 10,
     paddingVertical: 8,
     backgroundColor: colors.card,
@@ -54,7 +57,7 @@ export const appStyles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: colors.accent,
-    borderRadius: 8,
+    borderRadius: 4,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -64,7 +67,7 @@ export const appStyles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 4,
     paddingVertical: 10,
     paddingHorizontal: 14,
     alignItems: 'center',
@@ -94,7 +97,7 @@ export const appStyles = StyleSheet.create({
   },
   errorBox: {
     borderColor: colors.accent,
-    backgroundColor: '#fdf1f0',
+    backgroundColor: colors.accentWash,
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
@@ -105,7 +108,7 @@ export const appStyles = StyleSheet.create({
   },
   successBox: {
     borderColor: colors.ok,
-    backgroundColor: '#eef8f1',
+    backgroundColor: colors.successWash,
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
@@ -140,7 +143,7 @@ export const appStyles = StyleSheet.create({
   },
   optionChipSelected: {
     borderColor: colors.accent,
-    backgroundColor: '#fdf1f0',
+    backgroundColor: colors.accentWash,
   },
   optionChipText: {
     color: colors.ink,

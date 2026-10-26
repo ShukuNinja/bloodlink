@@ -12,6 +12,7 @@ const user = (
   type?: AuthUser['organizations'][number]['type'],
 ): AuthUser => ({
   id: 'user-id',
+  name: 'Person',
   email: 'person@example.com',
   status: 'ACTIVE',
   role,
