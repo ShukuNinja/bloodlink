@@ -34,9 +34,7 @@ export const registerInputSchema: z.ZodType<RegisterInput> = z
   .strictObject({
     email: emailSchema,
     password: passwordSchema,
-    accountType: z
-      .enum(['INDIVIDUAL', 'HOSPITAL', 'BLOOD_CENTRE', 'ADMIN'])
-      .optional(),
+    accountType: z.enum(['INDIVIDUAL', 'HOSPITAL', 'BLOOD_CENTRE']).optional(),
     organizationName: z.string().trim().min(1).max(255).optional(),
     location: z
       .strictObject({

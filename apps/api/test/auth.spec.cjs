@@ -136,17 +136,21 @@ describe('authentication endpoints', () => {
     });
   });
 
-  it('allows an explicitly selected Admin account at registration', async () => {
+  it('rejects Admin self-registration', async () => {
     const response = await post('/auth/register', {
       email: 'admin-self-register@example.com',
       password: 'a-safe-test-password',
       accountType: 'ADMIN',
     });
-    const body = (await response.json()).data;
 
-    assert.equal(response.status, 201);
-    assert.equal(body.user.role, 'ADMIN');
-    assert.deepEqual(body.user.organizations, []);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error.code, 'VALIDATION_ERROR');
+    assert.equal(
+      store.users.some(
+        (candidate) => candidate.email === 'admin-self-register@example.com',
+      ),
+      false,
+    );
   });
 
   it('requires an organization name for hospital and blood bank registration', async () => {

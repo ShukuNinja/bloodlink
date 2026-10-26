@@ -23,14 +23,17 @@ describes the upstream vulnerabilities addressed by the patch.
 4. Check whether the existing local database has data that must be retained.
    If so, create an explicit data export/import and validation plan before
    switching clients.
-5. Use Supabase's pooled endpoint for the long-running API as requested, with
-   a pooler mode verified against Render's process model and the current
-   PrismaPg/node-postgres adapter guidance. Use a direct or supported session
-   connection for migrations if the chosen pool mode cannot support them.
-6. Current `apps/api/prisma.config.ts` reads one `DATABASE_URL`; it does not
-   have a separate `DIRECT_URL`. Do not add a second connection variable or
-   pooler query parameters without checking current official Supabase/Prisma
-   guidance and testing both runtime and migration use cases.
+5. Set the API's `DATABASE_URL` to Supabase's shared **session pooler** URL
+   (port 5432). Supabase documents session mode for persistent backends on
+   IPv4-only networks; it supports prepared statements and session features
+   that transaction mode does not. Render is the long-running API host.
+6. Set `DIRECT_URL` to Supabase's direct connection for Prisma CLI migration
+   and introspection commands when the migration runner has IPv6 access. If it
+   does not, use Supabase's session pooler URL for `DIRECT_URL`. The API runtime
+   continues to use `DATABASE_URL`; `apps/api/prisma.config.ts` selects
+   `DIRECT_URL` when present and falls back to `DATABASE_URL` for local setups.
+   Keep both values in secret configuration and verify them against the actual
+   Supabase project before applying migrations.
 
 ## 2. Render API service
 

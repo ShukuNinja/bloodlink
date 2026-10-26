@@ -9,7 +9,8 @@ import {
   apiRequest,
   clearAccessToken,
   getAccessToken,
-  setAccessToken,
+  getRefreshToken,
+  setSessionTokens,
 } from './client';
 
 export async function register(input: RegisterInput): Promise<AuthResponse> {
@@ -18,7 +19,7 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
     '/auth/register',
     { body: input },
   );
-  setAccessToken(envelope.data.accessToken);
+  await setSessionTokens(envelope.data.accessToken, envelope.data.refreshToken);
   return envelope.data;
 }
 
@@ -28,7 +29,7 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
     '/auth/login',
     { body: input },
   );
-  setAccessToken(envelope.data.accessToken);
+  await setSessionTokens(envelope.data.accessToken, envelope.data.refreshToken);
   return envelope.data;
 }
 
@@ -37,8 +38,18 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
   return envelope.data;
 }
 
-export function signOut(): void {
-  clearAccessToken();
+export async function signOut(): Promise<void> {
+  const token = getRefreshToken();
+  try {
+    if (token) {
+      await apiRequest('POST', '/auth/logout', {
+        body: { refreshToken: token },
+        skipRefresh: true,
+      });
+    }
+  } finally {
+    await clearAccessToken();
+  }
 }
 
 export function isSignedIn(): boolean {

@@ -21,8 +21,10 @@ For the ordered end-to-end completion plan and reusable ChatGPT handoff prompt, 
 
 - [x] Allow all authenticated roles to access notifications; organization members and admins see open requests from hospitals they subscribe to, while individual accounts retain the existing open-request feed. Add notification access in web and mobile clients.
 - [x] Add mobile organization search, subscribe/unsubscribe, subscription list, organization and patient-need conversations, and home-screen links.
-- [ ] Add coverage for new search, subscription, organization conversation, and patient-need conversation workflows. Web tests pass (29); latest focused API notification tests pass (3). API build/typecheck and mobile/web typechecks pass. Full API loopback integration suite is blocked because sandbox network policy denies local listener connections.
-- [ ] Verify the new migration against a disposable PostgreSQL database before applying it to a shared database; no local/disposable database was available.
-- [ ] Provision Supabase later and validate migrations/PostGIS using the pooled runtime connection; retain direct connectivity for migration/admin tooling as needed.
-- [ ] Configure Render web and API services and EAS Android/iOS test builds after end-to-end client validation; deployment credentials/project setup are not available in this workspace.
+- [x] Add coverage for organization and PatientNeed conversation membership, privacy, and terminal-state behavior. API suite passes 152/152; web suite passes 29/29.
+- [x] Verify all 10 migrations on an isolated PostgreSQL 18 + PostGIS cluster. Prisma reports up to date; a seeded hospital subscription survived the rename to `OrganizationSubscription`.
+- [ ] Create/configure Supabase staging and run migrations there. The plan now separates pooled runtime `DATABASE_URL` from Prisma CLI `DIRECT_URL`; isolated migration verification is complete.
+- [ ] Configure Render web/API and EAS mobile builds after Supabase staging is ready. No Render or EAS account/project is configured yet.
+- [x] Persist mobile access/refresh tokens with Expo SecureStore and restore/rotate the session across app restarts; unit tests cover persistence and refresh.
+- [ ] Configure EAS and install the app on a physical device. Android/iOS Expo exports pass, but no installable EAS build or device test is complete.
 - [ ] Revisit requests from blood banks for notifications: current BloodRequests are created by hospitals; blood banks respond to them.

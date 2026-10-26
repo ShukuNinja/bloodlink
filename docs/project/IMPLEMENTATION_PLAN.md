@@ -39,17 +39,19 @@ precise donor location.
 
 ## Current checkpoint and known caveats
 
-- The intended branch is `app/final-integration-fixes`. It exists locally, but
-  the inspected checkout is detached at `537ef3a`; the branch ref points to a
-  different commit. Reconcile and inspect both histories before changing code.
-- The checked-out commit already upgrades Next.js from 16.4.0 to 16.4.3. The
-  production build and web tests still need to be run on the intended branch.
-- The tracker reports feature work present across web and mobile, with
-  automated workflow coverage and disposable-database migration verification
-  incomplete. Re-run checks; documentation is a checkpoint, not evidence that
-  the current branch passes.
-- Supabase, Render, and EAS deployment are not documented as provisioned or
-  verified. Confirm their live state before relying on this assumption.
+- The current candidate is `main` at `15baaf3`, fast-forwarded to
+  `origin/main`; the prior `production` branch remains at `7880955`.
+- API checks pass, including 152 tests. Web checks pass, including a production
+  build on lockfile-pinned Next.js 16.4.3. Mobile typecheck, lint, 14 tests,
+  and Android/iOS Expo export pass. Mobile SecureStore session restoration and
+  refresh-token rotation are implemented and unit-tested.
+- The full 10-migration chain and subscription preservation were verified on a
+  separate PostgreSQL 18 + PostGIS test cluster. No existing local or shared
+  database was changed.
+- Supabase is being provisioned by the user. Render deployment, EAS setup, and
+  physical-device acceptance remain pending. The friend who owns the Supabase
+  account/repository must grant the needed project access independently of
+  GitHub collaborator access.
 - The local `bloodlink` database was explicitly cleaned: application users,
   organizations, requests, subscriptions, memberships, tokens, conversations,
   and related records were verified empty. Do not recreate test records in a

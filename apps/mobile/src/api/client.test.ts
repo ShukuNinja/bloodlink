@@ -14,9 +14,13 @@ import {
   apiRequest,
   clearAccessToken,
   getAccessToken,
+  resetSessionMemoryForTesting,
   setAccessToken,
+  setSessionTokens,
+  restoreSession,
   validationIssues,
 } from './client.ts';
+import { setSessionStorageAdapterForTesting } from './session-storage.ts';
 
 type FetchCall = { url: string; init: RequestInit };
 
@@ -25,7 +29,19 @@ let nextResponse: { status: number; body: string } = {
   status: 200,
   body: '{}',
 };
+let responseQueue: Array<{ status: number; body: string }> = [];
+let storedSession: string | null = null;
 let failNetwork = false;
+
+const testSessionStorage = {
+  getItemAsync: async () => storedSession,
+  setItemAsync: async (_key: string, value: string) => {
+    storedSession = value;
+  },
+  deleteItemAsync: async () => {
+    storedSession = null;
+  },
+};
 
 (globalThis as Record<string, unknown>).fetch = async (
   url: string,
@@ -33,18 +49,23 @@ let failNetwork = false;
 ) => {
   fetchCalls.push({ url, init });
   if (failNetwork) throw new Error('ECONNREFUSED');
+  const response = responseQueue.shift() ?? nextResponse;
   return {
-    ok: nextResponse.status >= 200 && nextResponse.status < 300,
-    status: nextResponse.status,
-    text: async () => nextResponse.body,
+    ok: response.status >= 200 && response.status < 300,
+    status: response.status,
+    text: async () => response.body,
   };
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   fetchCalls = [];
+  responseQueue = [];
+  storedSession = null;
   failNetwork = false;
   nextResponse = { status: 200, body: '{}' };
-  clearAccessToken();
+  setSessionStorageAdapterForTesting(testSessionStorage);
+  resetSessionMemoryForTesting();
+  await clearAccessToken();
 });
 
 test('buildApiUrl serializes only defined query values', () => {
@@ -198,10 +219,86 @@ test('malformed error bodies do not crash parsing', async () => {
   );
 });
 
-test('token storage set/get/clear round-trip', () => {
+test('access token memory set/get/clear round-trip', async () => {
   assert.equal(getAccessToken(), null);
   setAccessToken('token-xyz');
   assert.equal(getAccessToken(), 'token-xyz');
-  clearAccessToken();
+  await clearAccessToken();
+  assert.equal(getAccessToken(), null);
+});
+
+test('persists and restores both tokens after an app restart', async () => {
+  await setSessionTokens('access-before-restart', 'refresh-before-restart');
+  assert.deepEqual(JSON.parse(String(storedSession)), {
+    accessToken: 'access-before-restart',
+    refreshToken: 'refresh-before-restart',
+  });
+
+  resetSessionMemoryForTesting();
+  await restoreSession();
+  assert.equal(getAccessToken(), 'access-before-restart');
+});
+
+test('refreshes and persists rotated tokens once after an expired access token', async () => {
+  await setSessionTokens('expired-access', 'refresh-current');
+  responseQueue = [
+    {
+      status: 401,
+      body: JSON.stringify({
+        error: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+      }),
+    },
+    {
+      status: 200,
+      body: JSON.stringify({
+        data: {
+          accessToken: 'access-rotated',
+          refreshToken: 'refresh-rotated',
+        },
+      }),
+    },
+    { status: 200, body: JSON.stringify({ data: { id: 'need-1' } }) },
+  ];
+
+  const result = await apiRequest<{ data: { id: string } }>(
+    'GET',
+    '/patient-needs',
+  );
+
+  assert.equal(result.data.id, 'need-1');
+  assert.equal(fetchCalls.length, 3);
+  assert.equal(
+    (fetchCalls[2].init.headers as Record<string, string>).Authorization,
+    'Bearer access-rotated',
+  );
+  assert.deepEqual(JSON.parse(String(storedSession)), {
+    accessToken: 'access-rotated',
+    refreshToken: 'refresh-rotated',
+  });
+});
+
+test('expired refresh token clears the persisted session', async () => {
+  await setSessionTokens('expired-access', 'expired-refresh');
+  responseQueue = [
+    {
+      status: 401,
+      body: JSON.stringify({
+        error: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+      }),
+    },
+    {
+      status: 401,
+      body: JSON.stringify({
+        error: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+      }),
+    },
+  ];
+
+  await assert.rejects(
+    apiRequest('GET', '/patient-needs'),
+    (error: unknown) =>
+      error instanceof ApiClientError && error.code === 'UNAUTHORIZED',
+  );
+  assert.equal(storedSession, null);
   assert.equal(getAccessToken(), null);
 });

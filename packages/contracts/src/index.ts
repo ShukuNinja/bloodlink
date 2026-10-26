@@ -138,12 +138,12 @@ export type AdminOrganizationListResponse = ApiSuccessWithMeta<
 export type RegisterInput = {
   email: string;
   password: string;
-  accountType?: 'INDIVIDUAL' | 'ADMIN' | 'HOSPITAL' | 'BLOOD_CENTRE';
+  accountType?: 'INDIVIDUAL' | 'HOSPITAL' | 'BLOOD_CENTRE';
   organizationName?: string;
   location?: { latitude: number; longitude: number };
 };
 
-export type LoginInput = RegisterInput;
+export type LoginInput = Pick<RegisterInput, 'email' | 'password'>;
 
 export type RefreshInput = {
   refreshToken: string;

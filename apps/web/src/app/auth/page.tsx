@@ -16,7 +16,7 @@ export default function AuthPage() {
   const session = useAuthSession();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [accountType, setAccountType] = useState<
-    'INDIVIDUAL' | 'HOSPITAL' | 'BLOOD_CENTRE' | 'ADMIN'
+    'INDIVIDUAL' | 'HOSPITAL' | 'BLOOD_CENTRE'
   >('INDIVIDUAL');
   const [organizationName, setOrganizationName] = useState('');
   const [latitude, setLatitude] = useState('');
@@ -89,14 +89,13 @@ export default function AuthPage() {
                 onChange={(event) =>
                   setAccountType(
                     event.target.value as
-                      'INDIVIDUAL' | 'HOSPITAL' | 'BLOOD_CENTRE' | 'ADMIN',
+                      'INDIVIDUAL' | 'HOSPITAL' | 'BLOOD_CENTRE',
                   )
                 }
               >
                 <option value="INDIVIDUAL">Individual</option>
                 <option value="HOSPITAL">Hospital</option>
                 <option value="BLOOD_CENTRE">Blood bank</option>
-                <option value="ADMIN">Admin</option>
               </select>
             </>
           ) : null}
@@ -120,8 +119,8 @@ export default function AuthPage() {
           <fieldset className="field">
             <legend>Organization location</legend>
             <p className="muted">
-              Coordinates help people find this organization. Enter its
-              location or use the device location while at the organization.
+              Coordinates help people find this organization. Enter its location
+              or use the device location while at the organization.
             </p>
             <div className="row">
               <label htmlFor="organization-latitude">Latitude</label>
@@ -234,13 +233,6 @@ export default function AuthPage() {
           <p className="muted">
             Choose your account type once. Hospital and blood bank accounts
             create an organization workspace.
-          </p>
-        ) : null}
-        {mode === 'register' && accountType === 'ADMIN' ? (
-          <p className="muted" role="note">
-            Admin accounts can view platform metrics and current account and
-            organization records. This public form allows anyone to create an
-            Admin account.
           </p>
         ) : null}
       </form>

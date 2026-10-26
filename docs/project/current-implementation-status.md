@@ -7,12 +7,11 @@ external setup separately; it is not a production-readiness claim.
 
 ## Git checkpoint
 
-- Branch: `app/final-integration-fixes`.
-- Latest commits include `96d6bc5` (Next.js security patch) and `6097844`
-  (documentation reorganization); verify `git log` for later feature commits.
-- Configured Git author: `ShukuNinja <sri2410089@ssn.edu.in>`.
-- The workspace has pre-existing uncommitted changes. Inspect `git status`
-  before staging; preserve unrelated/user-owned files.
+- Branch: `main` at `15baaf3` (`feat: complete BloodLink integration workflows`),
+  fast-forwarded to `origin/main` for this completion pass. The prior
+  `production` branch remains at `7880955`.
+- The working tree contains the completion-pass changes. Inspect `git status`
+  before staging. No commit or push has been made.
 
 ## Feature status
 
@@ -25,18 +24,21 @@ external setup separately; it is not a production-readiness claim.
 | Subscriptions                      | Implemented for authenticated users following active hospitals/blood banks | Local schema mismatch was fixed by applying four reviewed migrations; browser subscribe/unsubscribe and list were verified.                        |
 | Notifications                      | Implemented as derived in-app alerts for all authenticated users           | Individual open-request feed remains; organization members/Admins see requests from subscribed hospitals. No persistent history or push/email/SMS. |
 | Navigation                         | Implemented on web; key mobile links/screens added                         | Hospital has separate Patient needs/Blood requests links. Complete role-by-role and responsive/device QA.                                          |
-| Backend/web/mobile                 | Web/API candidate verified                                                 | Mobile remains buildable per the prior Expo export; complete real-device and role-matrix verification remains.                                     |
+| Backend/web/mobile                 | Candidate builds and automated checks pass                                 | Physical-device and deployed role-matrix checks remain. Mobile session restoration/rotation is implemented and unit-tested.                        |
 
 ## Verification recorded on the feature checkpoint
 
-- API typecheck/build passed.
-- Web and mobile TypeScript checks passed.
-- Affected-source ESLint passed.
-- Web suite passed 29 tests.
-- Full API suite passed **147/147** after the organization-directory tests
-  were added. Web tests passed **29/29**.
-- Prisma schema validation/client generation passed before the feature
-  checkpoint.
+- API lint and typecheck passed; the full API suite passed **152/152** after
+  adding focused organization and PatientNeed conversation authorization tests.
+- Web typecheck and lint passed, web tests passed **29/29**, and the production
+  build passed on lockfile-pinned Next.js **16.4.3** after syncing dependencies.
+- Mobile typecheck and lint passed, mobile tests passed **14/14**, and Expo
+  export bundled Android and iOS successfully.
+- All **10 migrations** applied successfully to an isolated PostgreSQL 18 +
+  PostGIS test cluster. Prisma reports the schema up to date. Spatial queries
+  work, and a seeded subscription survived the rename migration.
+- Prisma CLI migration status was verified using `DIRECT_URL` while
+  `DATABASE_URL` pointed at an invalid host.
 - `git diff --check` passed with Windows line-ending warnings.
 
 The authenticated browser smoke test verified the combined directory, all six
@@ -48,15 +50,14 @@ deployment.
 
 ## External services and release state
 
-- Database: development has used PostgreSQL locally. Supabase is not
-  provisioned; no migration was applied there.
-- Local database: `bloodlink` at `localhost:5432` was missing four migrations.
-  Preflight found no donor-response, conversation, subscription, or donation
-  rows to orphan; all four migrations were applied successfully. Verify from a
-  separate disposable database before release.
+- Database: Supabase is not provisioned yet; no migration was applied there.
+  The user is provisioning it manually. Migration verification used an
+  isolated cluster and did not touch the existing local database.
 - Web/API: no Render services/public deployment verified.
-- Mobile: no EAS config/build verified; mobile access-token state is in memory,
-  so sign-in does not currently survive an app process restart.
+- Mobile: access and refresh tokens are stored with Expo SecureStore, restored
+  on startup, and rotated after a 401; tests verify persistence and refresh.
+  No EAS config, installable device build, or physical-device restart test has
+  been verified.
 - Blood-bank-originated requests: unsupported by current domain model;
   hospitals create BloodRequests and blood banks respond.
 

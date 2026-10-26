@@ -61,7 +61,7 @@ export class AuthService {
           data: {
             email,
             passwordHash,
-            role: accountType === 'ADMIN' ? 'ADMIN' : 'INDIVIDUAL',
+            role: 'INDIVIDUAL',
           },
         });
         if (isOrganization) {

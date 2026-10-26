@@ -1,4 +1,9 @@
 import type { ApiErrorCode } from '@bloodlink/contracts';
+import {
+  deleteStoredSession,
+  readStoredSession,
+  writeStoredSession,
+} from './session-storage.ts';
 
 /**
  * BloodLink mobile API transport.
@@ -6,7 +11,7 @@ import type { ApiErrorCode } from '@bloodlink/contracts';
  * Mobile talks to the backend API only (never the database). The backend
  * origin is configured through the standard Expo `EXPO_PUBLIC_API_URL`
  * environment variable; access tokens are attached as
- * `Authorization: Bearer <JWT>` and kept for the session.
+ * `Authorization: Bearer <JWT>`. Native sessions are stored in Expo SecureStore.
  */
 
 const API_ORIGIN = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -38,6 +43,10 @@ export class ApiClientError extends Error {
 }
 
 let accessToken: string | null = null;
+let refreshToken: string | null = null;
+let sessionRestored = false;
+let restoreInFlight: Promise<void> | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
 
 export function getAccessToken(): string | null {
   return accessToken;
@@ -45,10 +54,59 @@ export function getAccessToken(): string | null {
 
 export function setAccessToken(token: string): void {
   accessToken = token;
+  sessionRestored = true;
 }
 
-export function clearAccessToken(): void {
+export function getRefreshToken(): string | null {
+  return refreshToken;
+}
+
+export async function setSessionTokens(
+  nextAccessToken: string,
+  nextRefreshToken: string,
+): Promise<void> {
+  accessToken = nextAccessToken;
+  refreshToken = nextRefreshToken;
+  sessionRestored = true;
+  try {
+    await writeStoredSession({
+      accessToken: nextAccessToken,
+      refreshToken: nextRefreshToken,
+    });
+  } catch (error) {
+    accessToken = null;
+    refreshToken = null;
+    throw error;
+  }
+}
+
+export async function clearAccessToken(): Promise<void> {
   accessToken = null;
+  refreshToken = null;
+  sessionRestored = true;
+  await deleteStoredSession();
+}
+
+export async function restoreSession(): Promise<void> {
+  if (sessionRestored) return;
+  if (restoreInFlight) return restoreInFlight;
+  restoreInFlight = (async () => {
+    const stored = await readStoredSession();
+    accessToken = stored?.accessToken ?? null;
+    refreshToken = stored?.refreshToken ?? null;
+    sessionRestored = true;
+    if (!stored) await deleteStoredSession();
+  })().finally(() => {
+    restoreInFlight = null;
+  });
+  return restoreInFlight;
+}
+
+/** Resets only in-memory state so a fresh app process can be simulated in tests. */
+export function resetSessionMemoryForTesting(): void {
+  accessToken = null;
+  refreshToken = null;
+  sessionRestored = false;
 }
 
 export function hasAccessToken(): boolean {
@@ -60,6 +118,7 @@ type QueryValue = string | number | boolean | undefined;
 export interface ApiRequestOptions {
   body?: unknown;
   query?: Record<string, QueryValue>;
+  skipRefresh?: boolean;
 }
 
 export function buildApiUrl(
@@ -82,13 +141,37 @@ export async function apiRequest<TEnvelope>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<TEnvelope> {
+  await restoreSession();
+  const response = await sendRequest(method, path, options);
+  if (
+    response.status === 401 &&
+    !options.skipRefresh &&
+    ![
+      '/auth/login',
+      '/auth/register',
+      '/auth/refresh',
+      '/auth/logout',
+    ].includes(path)
+  ) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return parseResponse<TEnvelope>(await sendRequest(method, path, options));
+    }
+  }
+  return parseResponse<TEnvelope>(response);
+}
+
+async function sendRequest(
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  path: string,
+  options: ApiRequestOptions,
+): Promise<Response> {
   const headers: Record<string, string> = {};
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
-  let response: Response;
   try {
-    response = await fetch(buildApiUrl(path, options.query), {
+    return await fetch(buildApiUrl(path, options.query), {
       method,
       headers,
       body:
@@ -101,13 +184,69 @@ export async function apiRequest<TEnvelope>(
       'Unable to reach the BloodLink API. Check your connection.',
     );
   }
+}
 
+async function parseResponse<TEnvelope>(
+  response: Response,
+): Promise<TEnvelope> {
   const parsed = await parseBody(response);
-
   if (!response.ok) {
     throw errorFromResponse(response.status, parsed);
   }
   return parsed as TEnvelope;
+}
+
+async function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  const currentRefreshToken = refreshToken;
+  if (!currentRefreshToken) return false;
+
+  refreshInFlight = (async () => {
+    let response: Response;
+    try {
+      response = await fetch(buildApiUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: currentRefreshToken }),
+      });
+    } catch {
+      throw new ApiClientError(
+        0,
+        'NETWORK_ERROR',
+        'Unable to refresh your session. Check your connection.',
+      );
+    }
+
+    const parsed = await parseBody(response);
+    if (!response.ok) {
+      if (response.status === 401 && refreshToken === currentRefreshToken) {
+        await clearAccessToken();
+        return false;
+      }
+      throw errorFromResponse(response.status, parsed);
+    }
+
+    const tokens = (
+      parsed as
+        { data?: { accessToken?: unknown; refreshToken?: unknown } } | undefined
+    )?.data;
+    if (
+      typeof tokens?.accessToken !== 'string' ||
+      typeof tokens.refreshToken !== 'string'
+    ) {
+      throw new ApiClientError(
+        response.status,
+        'MALFORMED',
+        'The API returned an invalid session response.',
+      );
+    }
+    await setSessionTokens(tokens.accessToken, tokens.refreshToken);
+    return true;
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
