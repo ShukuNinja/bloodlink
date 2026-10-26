@@ -6,6 +6,9 @@ import type { NextConfig } from 'next';
 const apiOrigin = process.env.BLOODLINK_API_ORIGIN ?? 'http://localhost:3001';
 
 const nextConfig: NextConfig = {
+  experimental: {
+    agentUpgrade: 'security',
+  },
   // Allow isolated production-build verification without replacing a running
   // development server's .next output. Production defaults remain unchanged.
   distDir: process.env.BLOODLINK_NEXT_DIST_DIR ?? '.next',
