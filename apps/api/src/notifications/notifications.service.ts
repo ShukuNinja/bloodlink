@@ -3,6 +3,7 @@ import type {
   InAppNotification,
   MatchingTier,
   NotificationBoundary,
+  PlatformRole,
   PushSubscription,
 } from '@bloodlink/contracts';
 import { PrismaService } from '../database/prisma.service';
@@ -29,31 +30,59 @@ export class NotificationsService {
    * No Notification rows or event history are stored; opening this feed
    * reflects the current matching and subscription state.
    */
-  async listForIndividual(userId: string): Promise<InAppNotification[]> {
+  async listForUser(
+    userId: string,
+    role: PlatformRole,
+  ): Promise<InAppNotification[]> {
     const subscriptions = await this.prisma.organizationSubscription.findMany({
       where: {
         userId,
         status: 'ACTIVE',
-        organization: { type: 'HOSPITAL', status: 'ACTIVE' },
+        organization: {
+          type: { in: ['HOSPITAL', 'BLOOD_CENTRE'] },
+          status: 'ACTIVE',
+        },
       },
       select: { organizationId: true },
     });
-    const subscribedHospitalIds = new Set(
+    const subscribedOrganizationIds = new Set(
       subscriptions.map((subscription) => subscription.organizationId),
     );
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        organization: {
+          type: { in: ['HOSPITAL', 'BLOOD_CENTRE'] },
+          status: 'ACTIVE',
+        },
+      },
+      select: { organizationId: true },
+    });
+    // Individual accounts retain the existing open-request feed. Organization
+    // members and admins receive alerts for requests from subscribed hospitals.
+    const isOrganizationAccount = role === 'ADMIN' || memberships.length > 0;
+    if (isOrganizationAccount && subscribedOrganizationIds.size === 0) {
+      return [];
+    }
     const requests = await this.prisma.bloodRequest.findMany({
       where: {
         status: { in: [...REQUEST_STATUSES_OPEN_FOR_RESPONSES] },
         hospital: { type: 'HOSPITAL', status: 'ACTIVE' },
+        ...(!isOrganizationAccount
+          ? {}
+          : { hospitalId: { in: [...subscribedOrganizationIds] } }),
       },
       include: { hospital: { select: { name: true } } },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       take: 100,
     });
-    const answered = await this.listRespondedRequestIds(
-      userId,
-      requests.map((request) => request.id),
-    );
+    const answered = !isOrganizationAccount
+      ? await this.listRespondedRequestIds(
+          userId,
+          requests.map((request) => request.id),
+        )
+      : new Set<string>();
     return requests
       .filter((request) => !answered.has(request.id))
       .map((request) =>
@@ -68,7 +97,7 @@ export class NotificationsService {
             status: request.status,
             hospitalName: request.hospital.name,
           },
-          subscribedHospitalIds.has(request.hospitalId)
+          subscribedOrganizationIds.has(request.hospitalId)
             ? 'HOSPITAL_SUBSCRIPTION'
             : 'NEARBY_MATCH',
         ),

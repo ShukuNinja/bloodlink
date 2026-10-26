@@ -8,6 +8,7 @@ import { HospitalSubscriptionsService } from '../hospital-subscriptions/hospital
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrganizationCommunicationService } from '../communication/organization-communication.service';
 import { PatientNeedCommunicationService } from '../communication/patient-need-communication.service';
+import type { AuthenticatedPrincipal } from '../auth/auth.types';
 
 /**
  * OWNER: D4
@@ -96,8 +97,8 @@ export class D4ScaffoldService {
     return this.subscriptions.listSubscriptions(userId);
   }
 
-  listNotifications(userId: string) {
-    return this.notifications.listForIndividual(userId);
+  listNotifications(userId: string, role: AuthenticatedPrincipal['role']) {
+    return this.notifications.listForUser(userId, role);
   }
 
   getConversation(userId: string, requestId: string) {

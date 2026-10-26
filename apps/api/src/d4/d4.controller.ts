@@ -51,11 +51,10 @@ import { D4ScaffoldService } from './d4-scaffold.service';
 export class D4Controller {
   constructor(private readonly d4: D4ScaffoldService) {}
 
-  /** OWNER: D4 | ENDPOINT: GET /notifications | PURPOSE: List current in-app blood request alerts. | INPUT: Authenticated Individual. | OUTPUT: Existing request summaries and match/subscription source. | AUTHORIZATION: INDIVIDUAL. | DEPENDENCIES: Matching, donor preferences, and subscriptions. | STATE CHANGES: None; no event history is stored. | NON-RESPONSIBILITIES: Push/email/SMS delivery or medical eligibility. */
+  /** OWNER: D4 | ENDPOINT: GET /notifications | PURPOSE: List current in-app blood request alerts. | INPUT: Any authenticated role. | OUTPUT: Existing request summaries and match/subscription source. | AUTHORIZATION: Authenticated user; individuals retain the open-request feed, other roles receive requests from subscribed organizations. | DEPENDENCIES: Matching and organization subscriptions. | STATE CHANGES: None; no event history is stored. | NON-RESPONSIBILITIES: Push/email/SMS delivery or medical eligibility. */
   @Get('notifications')
-  @Roles('INDIVIDUAL')
   listNotifications(@CurrentUser() user: AuthenticatedPrincipal) {
-    return this.d4.listNotifications(user.id);
+    return this.d4.listNotifications(user.id, user.role);
   }
 
   /** OWNER: D4 | ENDPOINT: GET /donor/blood-requests | PURPOSE: List all open requests. | INPUT: Donor query. | OUTPUT: Donor request list. | AUTHORIZATION: INDIVIDUAL account; donor preferences are not collected. | DEPENDENCIES: Matching boundary and D4 service. | STATE CHANGES: None. | NON-RESPONSIBILITIES: Hospital suitability verification.. */

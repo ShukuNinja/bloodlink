@@ -17,7 +17,7 @@ Updated: 2026-10-26
 
 ## Remaining
 
-- [ ] Provide notifications to every role for requests from subscribed organizations. The automatic approval reviewer rejected removing the current Individual-only notification route guard; this access change needs approval before it can be applied.
+- [x] Allow all authenticated roles to access notifications; organization members and admins see open requests from hospitals they subscribe to, while individual accounts retain the existing open-request feed. Add notification access in web and mobile clients.
 - [x] Add mobile organization search, subscribe/unsubscribe, subscription list, organization and patient-need conversations, and home-screen links.
 - [ ] Add coverage for new search, subscription, organization conversation, and patient-need conversation workflows. Web tests pass (29); focused API tests pass (4). API build/typecheck and mobile/web typechecks pass. Full API loopback integration suite is blocked because sandbox network policy denies local listener connections.
 - [ ] Verify the new migration against a disposable PostgreSQL database before applying it to a shared database; no local/disposable database was available.

@@ -21,7 +21,6 @@ export function canAccessRoute(user: AuthUser, pathname: string): boolean {
   const individualAccount =
     user.role === 'INDIVIDUAL' && user.organizations.length === 0;
   if (pathname.startsWith('/donor')) return individualAccount;
-  if (pathname.startsWith('/notifications')) return individualAccount;
   if (pathname.startsWith('/admin')) return user.role === 'ADMIN';
   if (pathname.startsWith('/blood-centre')) {
     return user.organizations.some(

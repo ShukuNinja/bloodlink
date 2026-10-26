@@ -28,6 +28,9 @@ export default function HomeScreen() {
         <Link style={appStyles.linkText} href="/subscriptions">
           Subscribed organizations
         </Link>
+        <Link style={appStyles.linkText} href="/notifications">
+          Request alerts
+        </Link>
         <Link style={appStyles.linkText} href="/patient-needs/new">
           Submit a patient need
         </Link>

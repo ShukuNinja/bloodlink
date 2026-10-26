@@ -11,8 +11,10 @@ import {
   URGENCY_LABELS,
   formatTimestamp,
 } from '@/features/individual/patient-needs/present';
+import { useAuthSession } from '../auth-session';
 
 export default function NotificationsPage() {
+  const { user } = useAuthSession();
   const [items, setItems] = useState<InAppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +47,8 @@ export default function NotificationsPage() {
     <main>
       <h1>In-app request alerts</h1>
       <p className="muted">
-        Review open blood requests and choose whether you can help. Alerts are
-        derived from current records; BloodLink does not keep notification or
-        read history.
+        Alerts are based on current open blood requests and active
+        subscriptions. BloodLink does not keep notification or read history.
       </p>
       {loading ? <p aria-live="polite">Loading current alerts…</p> : null}
       {error ? (
@@ -62,9 +63,12 @@ export default function NotificationsPage() {
         <section className="card">
           <p>No current request alerts are available.</p>
           <p className="muted">
-            There are no unanswered open requests to show right now.
+            There are no open requests available from your current feed or
+            subscriptions.
           </p>
-          <Link href="/donor">Review open blood requests</Link>
+          {user?.role === 'INDIVIDUAL' && user.organizations.length === 0 ? (
+            <Link href="/donor">Review open blood requests</Link>
+          ) : null}
         </section>
       ) : null}
       {items.length > 0 ? (
@@ -91,7 +95,14 @@ export default function NotificationsPage() {
                 <dt>Alert source</dt>
                 <dd>{alertSource(item.source)}</dd>
               </dl>
-              <Link href="/donor">Review request and respond</Link>
+              {user?.organizations.some(
+                (organization) => organization.type === 'BLOOD_CENTRE',
+              ) ? (
+                <Link href="/blood-centre">Open blood bank workspace</Link>
+              ) : user?.role === 'INDIVIDUAL' &&
+                user.organizations.length === 0 ? (
+                <Link href="/donor">Review request and respond</Link>
+              ) : null}
             </li>
           ))}
         </ul>

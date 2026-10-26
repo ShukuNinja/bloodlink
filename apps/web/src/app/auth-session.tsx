@@ -127,13 +127,13 @@ function AppNavigation() {
               </Link>
               <Link href="/conversations">Conversations</Link>
               <Link href="/subscriptions">Subscriptions</Link>
+              <Link href="/notifications">Notifications</Link>
             </nav>
             {user?.role === 'INDIVIDUAL' && user.organizations.length === 0 ? (
               <>
                 <Link href="/patient-needs/new">New patient need</Link>
                 <Link href="/patient-needs">My patient needs</Link>
                 <Link href="/donor">Blood requests</Link>
-                <Link href="/notifications">Notifications</Link>
               </>
             ) : null}
             {user?.organizations.some(
