@@ -121,10 +121,7 @@ function AppNavigation() {
         {status === 'authenticated' ? (
           <>
             <nav className="nav-links" aria-label="Main navigation">
-              <Link href="/organizations?type=HOSPITAL">Find hospitals</Link>
-              <Link href="/organizations?type=BLOOD_CENTRE">
-                Find blood banks
-              </Link>
+              <Link href="/organizations">Find hospitals and blood banks</Link>
               <Link href="/conversations">Conversations</Link>
               <Link href="/subscriptions">Subscriptions</Link>
               <Link href="/notifications">Notifications</Link>

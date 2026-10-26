@@ -23,8 +23,11 @@ evidence.
   fulfillment lock regressions.
 - Run full API suite where local listeners and disposable DB are permitted.
 - Run web/mobile typecheck, lint, tests, and production/export builds.
-- Patch the installed Next.js 16.4.0 to the vendor's current fixed 16.4
-  release, then rerun the production build; see [current status](current-implementation-status.md).
+- Keep the patched Next.js 16.4.3 dependency and lockfile; the security upgrade
+  and production build are complete.
+- Continue the authenticated role matrix and mobile device checks; the
+  organization directory and subscription workflow have passed a browser smoke
+  test.
 - Resolve failures in code or report environmental blocks explicitly.
 
 **Exit:** checks pass on candidate code or every blocker has concrete evidence
@@ -33,10 +36,12 @@ and a local/CI action.
 ## Phase 2 — Verify database changes safely
 
 - Inspect the complete migration history and expected pre-migration schema.
-- Use a disposable PostgreSQL/PostGIS database, not the user's shared local DB.
-- Apply migrations without reset; verify subscription-row preservation,
-  indexes, constraints, spatial extensions, and `prisma migrate status`.
-- Run DB-backed tests and fix forward with a new migration if required.
+- Four reviewed pending migrations were applied to the local `bloodlink`
+  database after confirming the backfilled relationship tables were empty.
+- Verify the same migration set in a separate disposable PostgreSQL/PostGIS
+  database; confirm indexes, constraints, spatial extensions, and migration
+  status.
+- Run the DB-backed tests and fix forward with a new migration if required.
 
 **Exit:** disposable database is migrated, query-tested, and reproducible.
 

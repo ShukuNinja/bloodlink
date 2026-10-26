@@ -6,7 +6,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../http/zod-validation.pipe';
 import { OrganizationsService } from './organizations.service';
 
-/** Search active hospitals and blood centres; caller coordinates are not used or stored. */
+/** Search active hospitals and blood centres; caller coordinates are transient filters and are never stored or returned. */
 @Controller('organizations')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class OrganizationsController {

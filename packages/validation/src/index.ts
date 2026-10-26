@@ -129,10 +129,32 @@ export const hospitalSearchSchema: z.ZodType<HospitalSearchRequest> =
     query: z.string().trim().min(1).optional(),
   });
 
-export const organizationSearchSchema: z.ZodType<OrganizationSearchRequest> =
-  z.strictObject({
-    query: z.string().trim().min(1).max(255),
+export const organizationSearchSchema: z.ZodType<OrganizationSearchRequest> = z
+  .strictObject({
+    query: z.string().trim().max(255).optional(),
     type: z.enum(['HOSPITAL', 'BLOOD_CENTRE']).optional(),
+    latitude: z.coerce.number().min(-90).max(90).optional(),
+    longitude: z.coerce.number().min(-180).max(180).optional(),
+    radiusMeters: z.coerce.number().finite().positive().optional(),
+    sortOrder: z.enum(['ASC', 'DESC']).optional(),
+  })
+  .superRefine((input, context) => {
+    const hasLatitude = input.latitude !== undefined;
+    const hasLongitude = input.longitude !== undefined;
+    if (hasLatitude !== hasLongitude) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Latitude and longitude must be provided together.',
+        path: [hasLatitude ? 'longitude' : 'latitude'],
+      });
+    }
+    if (input.radiusMeters !== undefined && !hasLatitude) {
+      context.addIssue({
+        code: 'custom',
+        message: 'A location is required when using a radius filter.',
+        path: ['radiusMeters'],
+      });
+    }
   });
 
 const patientNeedStatusSchema = z.enum([

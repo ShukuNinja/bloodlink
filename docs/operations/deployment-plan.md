@@ -7,11 +7,11 @@ deployment. At the last code checkpoint, Supabase, Render, and EAS were not
 provisioned. Confirm current vendor documentation before using dashboard names,
 pooler flags, build settings, or pricing; those details can change.
 
-Before any Render web release, patch the installed Next.js `16.4.0` security
-blocker and rerun the production build. The official [October 14, 2026 security
-update](https://nextjs.org/blog/nextjs-security-update-october-14-2026) lists
-`16.4.1` as the patched `16.4` release. This repository's network environment
-could not download its pinned pnpm package to perform that dependency update.
+Next.js is pinned to `16.4.3` following the security upgrade, and the web
+production build has passed on that version. Keep the patched version in place
+for Render releases. The official [October 14, 2026 security
+update](https://nextjs.org/blog/nextjs-security-update-october-14-2026)
+describes the upstream vulnerabilities addressed by the patch.
 
 ## 1. Database preparation
 

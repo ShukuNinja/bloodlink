@@ -216,8 +216,12 @@ export type HospitalSummary = {
 export type HospitalSearchResponse = ApiSuccess<HospitalSummary[]>;
 
 export type OrganizationSearchRequest = {
-  query: string;
+  query?: string;
   type?: OrganizationType;
+  latitude?: number;
+  longitude?: number;
+  radiusMeters?: number;
+  sortOrder?: 'ASC' | 'DESC';
 };
 export type OrganizationSummary = {
   id: ResourceId;
