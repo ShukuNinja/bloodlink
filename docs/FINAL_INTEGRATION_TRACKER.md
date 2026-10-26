@@ -2,6 +2,8 @@
 
 Updated: 2026-10-26
 
+For the ordered end-to-end completion plan and reusable ChatGPT handoff prompt, see [PROJECT_COMPLETION_GUIDE.md](./PROJECT_COMPLETION_GUIDE.md).
+
 ## Completed in this branch
 
 - [x] Prevent donor and blood-centre response withdrawal after the request leaves active coordination.
@@ -19,7 +21,7 @@ Updated: 2026-10-26
 
 - [x] Allow all authenticated roles to access notifications; organization members and admins see open requests from hospitals they subscribe to, while individual accounts retain the existing open-request feed. Add notification access in web and mobile clients.
 - [x] Add mobile organization search, subscribe/unsubscribe, subscription list, organization and patient-need conversations, and home-screen links.
-- [ ] Add coverage for new search, subscription, organization conversation, and patient-need conversation workflows. Web tests pass (29); focused API tests pass (4). API build/typecheck and mobile/web typechecks pass. Full API loopback integration suite is blocked because sandbox network policy denies local listener connections.
+- [ ] Add coverage for new search, subscription, organization conversation, and patient-need conversation workflows. Web tests pass (29); latest focused API notification tests pass (3). API build/typecheck and mobile/web typechecks pass. Full API loopback integration suite is blocked because sandbox network policy denies local listener connections.
 - [ ] Verify the new migration against a disposable PostgreSQL database before applying it to a shared database; no local/disposable database was available.
 - [ ] Provision Supabase later and validate migrations/PostGIS using the pooled runtime connection; retain direct connectivity for migration/admin tooling as needed.
 - [ ] Configure Render web and API services and EAS Android/iOS test builds after end-to-end client validation; deployment credentials/project setup are not available in this workspace.
