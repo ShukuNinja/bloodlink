@@ -206,7 +206,7 @@ export default function BloodCentreWorkspacePage() {
                     </td>
                     <td>
                       {responseFor(responses, request.id)?.status ===
-                      'ACCEPTED' ? (
+                        'ACCEPTED' && isOpen(request.status) ? (
                         <button
                           type="button"
                           disabled={loading || busyIds.has(request.id)}
@@ -214,6 +214,9 @@ export default function BloodCentreWorkspacePage() {
                         >
                           {busyIds.has(request.id) ? 'Updating…' : 'Withdraw'}
                         </button>
+                      ) : responseFor(responses, request.id)?.status ===
+                        'ACCEPTED' ? (
+                        <span className="muted">Response locked</span>
                       ) : (
                         <button
                           type="button"

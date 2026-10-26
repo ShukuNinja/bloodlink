@@ -92,9 +92,18 @@ export class CommunicationService {
   > {
     const request = await this.prisma.bloodRequest.findUnique({
       where: { id: bloodRequestId },
-      select: { id: true, hospitalId: true },
+      select: { id: true, hospitalId: true, status: true },
     });
     if (!request) throw new NotFoundException('Conversation not found');
+    if (
+      ['FULFILLMENT_CONFIRMED', 'FULFILLED', 'CANCELLED'].includes(
+        request.status,
+      )
+    ) {
+      throw new NotFoundException(
+        'This request conversation is no longer available because the request is closed.',
+      );
+    }
 
     // A conversation only exists once D3 has selected exactly one
     // responder; before that, even hospital members get 404.

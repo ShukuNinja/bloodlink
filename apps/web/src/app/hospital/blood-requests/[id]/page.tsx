@@ -340,7 +340,10 @@ export default function HospitalBloodRequestDetailPage({
               <p className="muted">No responses are available yet.</p>
             )}
           </section>
-          {request.assignments.some((item) => item.state === 'SELECTED') ? (
+          {request.assignments.some((item) => item.state === 'SELECTED') &&
+          !['FULFILLMENT_CONFIRMED', 'FULFILLED', 'CANCELLED'].includes(
+            request.status,
+          ) ? (
             <CommunicationPanel requestId={id} />
           ) : null}
           {request.status === 'FULFILLMENT_CONFIRMED' ? (

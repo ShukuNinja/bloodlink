@@ -77,6 +77,7 @@ export class ResponsesService {
     if (existing.status === 'WITHDRAWN') {
       throw new ConflictException('Response already withdrawn');
     }
+    await this.requireOpenForResponses(bloodRequestId);
     const updated = await this.prisma.donorResponse.update({
       where: { id: existing.id },
       data: { status: 'WITHDRAWN' },
@@ -217,6 +218,7 @@ export class ResponsesService {
     if (existing.status === 'WITHDRAWN') {
       throw new ConflictException('Response already withdrawn');
     }
+    await this.requireOpenForResponses(bloodRequestId);
     const updated = await this.prisma.organizationResponse.update({
       where: { id: existing.id },
       data: { status: 'WITHDRAWN' },
