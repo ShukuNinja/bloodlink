@@ -1,12 +1,13 @@
 import { Link, useLocalSearchParams } from 'expo-router';
-import { ScrollView, Text } from 'react-native';
+import { Text } from 'react-native';
+import { KeyboardAwareScreen } from '../components/keyboard-aware-screen';
 import { PatientNeedConversationPanel } from '../features/communication/patient-need-conversation-panel';
 import { appStyles } from './styles';
 
 export default function PatientNeedConversationScreen() {
   const { patientNeedId } = useLocalSearchParams<{ patientNeedId: string }>();
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <Link style={appStyles.linkText} href="/conversations">
         ← Back to conversations
       </Link>
@@ -14,6 +15,6 @@ export default function PatientNeedConversationScreen() {
       {patientNeedId ? (
         <PatientNeedConversationPanel patientNeedId={patientNeedId} />
       ) : null}
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }

@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScreen } from '../components/keyboard-aware-screen';
 import { ApiClientError } from '../api/client';
 import * as authApi from '../api/auth';
 import { appStyles } from './styles';
@@ -33,7 +34,7 @@ export default function AuthScreen() {
   }
 
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <Text style={appStyles.title}>
         {mode === 'login' ? 'Sign in' : 'Create account'}
       </Text>
@@ -50,6 +51,7 @@ export default function AuthScreen() {
             <Text style={appStyles.label}>Your name</Text>
             <TextInput
               style={appStyles.input}
+              accessibilityLabel="Your name"
               value={name}
               onChangeText={setName}
               autoComplete="name"
@@ -61,6 +63,7 @@ export default function AuthScreen() {
         <Text style={appStyles.label}>Email</Text>
         <TextInput
           style={appStyles.input}
+          accessibilityLabel="Email"
           value={email}
           onChangeText={setEmail}
           autoComplete="email"
@@ -71,6 +74,7 @@ export default function AuthScreen() {
         <Text style={appStyles.label}>Password</Text>
         <TextInput
           style={appStyles.input}
+          accessibilityLabel="Password"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -103,6 +107,6 @@ export default function AuthScreen() {
           </Text>
         </Pressable>
       </View>
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }

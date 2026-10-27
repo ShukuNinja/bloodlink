@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScreen } from '../components/keyboard-aware-screen';
 import { ApiClientError } from '../api/client';
 import * as authApi from '../api/auth';
 import { appStyles } from './styles';
@@ -37,12 +38,13 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <Text style={appStyles.title}>Your account</Text>
       <View style={appStyles.card}>
         <Text style={appStyles.label}>Name</Text>
         <TextInput
           style={appStyles.input}
+          accessibilityLabel="Your name"
           value={name}
           onChangeText={setName}
           maxLength={120}
@@ -69,6 +71,6 @@ export default function ProfileScreen() {
           </Text>
         </Pressable>
       </View>
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }

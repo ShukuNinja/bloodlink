@@ -11,6 +11,7 @@ import type {
 import { ApiClientError } from '@/api/client';
 import { useAuthSession } from '@/app/auth-session';
 import { organizationsApi } from '@/features/organizations/api';
+import { formatDistanceMeters } from '@bloodlink/ui';
 import {
   BrowserLocationError,
   parseCoordinates,
@@ -465,6 +466,11 @@ export default function OrganizationsPage() {
                         : 'Blood bank'}
                     </span>
                     <h2>{organization.name}</h2>
+                    {organization.distanceMeters !== undefined ? (
+                      <p className="muted">
+                        {formatDistanceMeters(organization.distanceMeters)} away
+                      </p>
+                    ) : null}
                   </div>
                   <div className="organization-actions">
                     <button

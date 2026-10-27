@@ -1,11 +1,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { formatDistanceMeters } from '@bloodlink/ui';
 import {
   BrowserLocationError,
   parseCoordinates,
   parseRadiusKilometres,
   requestBrowserCoordinates,
 } from './location.ts';
+
+test('formats metre distances as readable kilometre labels', () => {
+  assert.equal(formatDistanceMeters(0), '<1 km');
+  assert.equal(formatDistanceMeters(999), '<1 km');
+  assert.equal(formatDistanceMeters(1_000), '1 km');
+  assert.equal(formatDistanceMeters(1_240), '1.2 km');
+  assert.equal(formatDistanceMeters(1_260), '1.3 km');
+  assert.equal(formatDistanceMeters(Number.NaN), 'Distance unavailable');
+});
 
 test('coordinate parsing accepts geographic boundary values', () => {
   assert.deepEqual(parseCoordinates('-90', '-180'), {

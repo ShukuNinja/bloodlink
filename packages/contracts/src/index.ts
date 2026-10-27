@@ -217,6 +217,7 @@ export type HospitalSummary = {
   name: string;
   latitude: number;
   longitude: number;
+  distanceMeters: number;
 };
 
 export type HospitalSearchResponse = ApiSuccess<HospitalSummary[]>;
@@ -233,6 +234,7 @@ export type OrganizationSummary = {
   id: ResourceId;
   name: string;
   type: OrganizationType;
+  distanceMeters?: number;
 };
 export type OrganizationSearchResponse = ApiSuccess<OrganizationSummary[]>;
 

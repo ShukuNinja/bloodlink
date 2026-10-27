@@ -38,6 +38,12 @@ export class ApiClientError extends Error {
 }
 
 let accessToken: string | null = null;
+let refreshToken: string | null = null;
+const sessionListeners = new Set<() => void>();
+
+function notifySessionChange() {
+  sessionListeners.forEach((listener) => listener());
+}
 
 export function getAccessToken(): string | null {
   return accessToken;
@@ -45,10 +51,28 @@ export function getAccessToken(): string | null {
 
 export function setAccessToken(token: string): void {
   accessToken = token;
+  notifySessionChange();
+}
+
+export function setSessionTokens(access: string, refresh: string): void {
+  accessToken = access;
+  refreshToken = refresh;
+  notifySessionChange();
+}
+
+export function getRefreshToken(): string | null {
+  return refreshToken;
+}
+
+export function subscribeToSessionChanges(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => sessionListeners.delete(listener);
 }
 
 export function clearAccessToken(): void {
   accessToken = null;
+  refreshToken = null;
+  notifySessionChange();
 }
 
 export function hasAccessToken(): boolean {

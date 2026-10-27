@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import { useHospitalSearch } from '@/features/individual/hospitals/hooks';
 import { ApiClientError } from '@/api/client';
+import { formatDistanceMeters } from '@bloodlink/ui';
 import { hospitalSubscriptionApi } from '@/features/individual/hospitals/api';
 import { isSubscriptionActionDisabled } from '@/features/individual/hospitals/subscription-state';
 import {
@@ -254,7 +255,7 @@ export default function HospitalsPage() {
             <label htmlFor="query">Hospital name contains (optional)</label>
             <input
               id="query"
-              placeholder="City"
+              placeholder="Hospital name"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -314,6 +315,7 @@ export default function HospitalsPage() {
               <tr>
                 <th>Hospital</th>
                 <th>Coordinates</th>
+                <th>Distance</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -325,6 +327,7 @@ export default function HospitalsPage() {
                     {hospital.latitude.toFixed(4)},{' '}
                     {hospital.longitude.toFixed(4)}
                   </td>
+                  <td>{formatDistanceMeters(hospital.distanceMeters)}</td>
                   <td>
                     <div className="row">
                       <button

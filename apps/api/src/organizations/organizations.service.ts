@@ -29,7 +29,8 @@ export class OrganizationsService {
       const direction =
         sortDirection === 'desc' ? Prisma.sql`DESC` : Prisma.sql`ASC`;
       return this.prisma.$queryRaw<OrganizationSummary[]>(Prisma.sql`
-        SELECT "id", "name", "type"
+        SELECT "id", "name", "type",
+          ST_Distance("location", ${searchPoint}) AS "distanceMeters"
         FROM "Organization"
         WHERE "status" = 'ACTIVE'
           AND "location" IS NOT NULL

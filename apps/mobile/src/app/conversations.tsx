@@ -3,11 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScreen } from '../components/keyboard-aware-screen';
 import type {
   OrganizationConversationDetail,
   OrganizationConversationSummary,
@@ -100,7 +100,7 @@ export default function ConversationsScreen() {
   }
 
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <Text style={appStyles.title}>Conversations</Text>
       <Text style={appStyles.subtitle}>
         General conversations between hospitals and blood banks.
@@ -189,6 +189,7 @@ export default function ConversationsScreen() {
             <>
               <TextInput
                 style={appStyles.input}
+                accessibilityLabel="Message content"
                 value={content}
                 onChangeText={setContent}
                 placeholder="Write a message"
@@ -213,6 +214,6 @@ export default function ConversationsScreen() {
       <Link href="/subscriptions" style={appStyles.linkText}>
         Subscribed organizations
       </Link>
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }

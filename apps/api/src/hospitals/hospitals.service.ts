@@ -44,6 +44,7 @@ export class HospitalsService {
       name: row.name,
       latitude: Number(row.latitude),
       longitude: Number(row.longitude),
+      distanceMeters: Number(row.distanceMeters),
     }));
   }
 }

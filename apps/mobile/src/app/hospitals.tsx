@@ -1,14 +1,21 @@
 import { Link, useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { formatDistanceMeters } from '@bloodlink/ui';
+import { KeyboardAwareScreen } from '../components/keyboard-aware-screen';
 import { useHospitalSearch } from '../features/individual/hospitals/hooks';
+import {
+  DeviceLocationError,
+  parseRadiusKilometres,
+  requestDeviceCoordinates,
+} from '../features/individual/hospitals/location';
 import { appStyles } from './styles';
 
 export default function HospitalsScreen() {
@@ -16,9 +23,32 @@ export default function HospitalsScreen() {
   const { results, loading, error, searched, search } = useHospitalSearch();
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [radiusMeters, setRadiusMeters] = useState('');
+  const [radiusKilometres, setRadiusKilometres] = useState('');
   const [query, setQuery] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  async function handleUseMyLocation() {
+    setLocationError(null);
+    setLocating(true);
+    try {
+      const coordinates = await requestDeviceCoordinates(
+        Location,
+        Location.Accuracy.Balanced,
+      );
+      setLatitude(String(coordinates.latitude));
+      setLongitude(String(coordinates.longitude));
+    } catch (error) {
+      setLocationError(
+        error instanceof DeviceLocationError
+          ? error.message
+          : 'Could not determine your location. Enter coordinates manually or retry.',
+      );
+    } finally {
+      setLocating(false);
+    }
+  }
 
   async function handleSubmit() {
     setFormError(null);
@@ -41,25 +71,22 @@ export default function HospitalsScreen() {
       setFormError('Longitude must be between -180 and 180.');
       return;
     }
-    let radius: number | undefined;
-    if (radiusMeters !== '') {
-      radius = Number(radiusMeters);
-      if (!Number.isFinite(radius) || radius <= 0) {
-        setFormError('Search radius must be a positive number of meters.');
-        return;
-      }
+    const radius = parseRadiusKilometres(radiusKilometres);
+    if (!radius.ok) {
+      setFormError(radius.message);
+      return;
     }
 
     await search({
       latitude: lat,
       longitude: lon,
-      radiusMeters: radius,
+      radiusMeters: radius.value,
       query: query.trim() || undefined,
     });
   }
 
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <Text style={appStyles.title}>Find nearby hospitals</Text>
       <Text style={appStyles.subtitle}>
         Search uses your current coordinates. Coordinates are never stored.
@@ -70,11 +97,32 @@ export default function HospitalsScreen() {
           <Text style={appStyles.errorText}>{formError}</Text>
         </View>
       ) : null}
+      {locationError ? (
+        <View style={appStyles.errorBox} accessibilityRole="alert">
+          <Text style={appStyles.errorText}>{locationError}</Text>
+        </View>
+      ) : null}
 
       <View style={appStyles.card}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Use my current location"
+          style={appStyles.secondaryButton}
+          disabled={locating}
+          onPress={() => void handleUseMyLocation()}
+        >
+          <Text style={appStyles.secondaryButtonText}>
+            {locating ? 'Getting location…' : 'Use my location'}
+          </Text>
+        </Pressable>
+        <Text style={appStyles.muted}>
+          Location is requested only when you choose this button. If access is
+          denied or unavailable, you can enter coordinates below.
+        </Text>
         <Text style={appStyles.label}>Latitude</Text>
         <TextInput
           style={appStyles.input}
+          accessibilityLabel="Latitude"
           value={latitude}
           onChangeText={setLatitude}
           keyboardType="numeric"
@@ -83,25 +131,30 @@ export default function HospitalsScreen() {
         <Text style={appStyles.label}>Longitude</Text>
         <TextInput
           style={appStyles.input}
+          accessibilityLabel="Longitude"
           value={longitude}
           onChangeText={setLongitude}
           keyboardType="numeric"
           placeholder="3.3792"
         />
-        <Text style={appStyles.label}>Radius (meters, optional)</Text>
+        <Text style={appStyles.label}>
+          Search radius (kilometres, optional)
+        </Text>
         <TextInput
           style={appStyles.input}
-          value={radiusMeters}
-          onChangeText={setRadiusMeters}
-          keyboardType="numeric"
-          placeholder="25000"
+          accessibilityLabel="Search radius in kilometres"
+          value={radiusKilometres}
+          onChangeText={setRadiusKilometres}
+          keyboardType="decimal-pad"
+          placeholder="25 (API default)"
         />
         <Text style={appStyles.label}>Name contains (optional)</Text>
         <TextInput
           style={appStyles.input}
+          accessibilityLabel="Hospital name filter"
           value={query}
           onChangeText={setQuery}
-          placeholder="City"
+          placeholder="Hospital name"
         />
         <Pressable
           style={appStyles.primaryButton}
@@ -144,6 +197,9 @@ export default function HospitalsScreen() {
             <View key={hospital.id} style={appStyles.card}>
               <Text style={{ fontWeight: '700' }}>{hospital.name}</Text>
               <Text style={appStyles.muted}>
+                {formatDistanceMeters(hospital.distanceMeters)} away
+              </Text>
+              <Text style={appStyles.muted}>
                 {hospital.latitude.toFixed(4)}, {hospital.longitude.toFixed(4)}
               </Text>
               <Pressable
@@ -163,6 +219,6 @@ export default function HospitalsScreen() {
             </View>
           ))
         : null}
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }

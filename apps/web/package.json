@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@bloodlink/contracts": "workspace:*",
+    "@bloodlink/ui": "workspace:*",
     "@bloodlink/validation": "workspace:*",
     "next": "16.4.3",
     "react": "^19.3.0",

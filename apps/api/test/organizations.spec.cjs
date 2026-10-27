@@ -86,7 +86,8 @@ test('uses a parameterized PostGIS radius filter without returning coordinates',
   assert.match(rawQuery.sql, /ST_DWithin/);
   assert.match(rawQuery.sql, /ILIKE/);
   assert.match(rawQuery.sql, /ORDER BY lower\("name"\) DESC/);
-  assert.match(rawQuery.sql, /SELECT "id", "name", "type"/);
+  assert.match(rawQuery.sql, /ST_Distance\("location"/);
+  assert.match(rawQuery.sql, /AS "distanceMeters"/);
   assert.ok(rawQuery.values.includes(80.2707));
   assert.ok(rawQuery.values.includes(13.0827));
   assert.ok(rawQuery.values.includes(5000));

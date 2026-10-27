@@ -140,6 +140,7 @@ describe('discovery results', () => {
     assert.equal(body.data.length, 2);
     for (const summary of body.data) {
       assert.deepEqual(Object.keys(summary).sort(), [
+        'distanceMeters',
         'id',
         'latitude',
         'longitude',
@@ -148,8 +149,7 @@ describe('discovery results', () => {
     }
     assert.equal(body.data[0].name, 'City Hospital');
     assert.equal(body.data[0].latitude, 6.5244);
-    // Internal ranking data and organization internals never leak.
-    assert.equal(body.data[0].distanceMeters, undefined);
+    assert.equal(body.data[0].distanceMeters, 1200.5);
   });
 
   it('returns an empty list when nothing is in range', async () => {

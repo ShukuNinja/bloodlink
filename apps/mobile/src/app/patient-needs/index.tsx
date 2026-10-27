@@ -1,12 +1,7 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScreen } from '../../components/keyboard-aware-screen';
 import {
   BLOOD_GROUP_LABELS,
   COMPONENT_LABELS,
@@ -26,7 +21,7 @@ export default function PatientNeedsHistoryScreen() {
   );
 
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <View style={appStyles.row}>
         <Text style={appStyles.title}>My patient needs</Text>
         <Link style={appStyles.linkText} href="/patient-needs/new">
@@ -110,6 +105,6 @@ export default function PatientNeedsHistoryScreen() {
           </Pressable>
         </View>
       ) : null}
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }

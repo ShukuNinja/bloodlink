@@ -1,12 +1,7 @@
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScreen } from '../components/keyboard-aware-screen';
 import type { OrganizationSubscription } from '@bloodlink/contracts';
 import { ApiClientError } from '../api/client';
 import { organizationsApi } from '../features/organizations/api';
@@ -59,7 +54,7 @@ export default function SubscriptionsScreen() {
   }
 
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <Text style={appStyles.title}>Subscribed organizations</Text>
       <Text style={appStyles.subtitle}>
         Hospitals and blood banks you follow.
@@ -98,6 +93,6 @@ export default function SubscriptionsScreen() {
       <Link href="/conversations" style={appStyles.linkText}>
         Conversations
       </Link>
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }

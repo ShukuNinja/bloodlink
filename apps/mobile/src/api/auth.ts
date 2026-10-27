@@ -8,9 +8,10 @@ import type {
 import {
   apiRequest,
   clearAccessToken,
+  getRefreshToken,
   getAccessToken,
-  setAccessToken,
-} from './client';
+  setSessionTokens,
+} from './client.ts';
 
 export async function register(input: RegisterInput): Promise<AuthResponse> {
   const envelope = await apiRequest<ApiSuccess<AuthResponse>>(
@@ -18,7 +19,7 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
     '/auth/register',
     { body: input },
   );
-  setAccessToken(envelope.data.accessToken);
+  setSessionTokens(envelope.data.accessToken, envelope.data.refreshToken);
   return envelope.data;
 }
 
@@ -28,7 +29,7 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
     '/auth/login',
     { body: input },
   );
-  setAccessToken(envelope.data.accessToken);
+  setSessionTokens(envelope.data.accessToken, envelope.data.refreshToken);
   return envelope.data;
 }
 
@@ -45,7 +46,15 @@ export async function updateAccountName(name: string): Promise<AuthUser> {
 }
 
 export function signOut(): void {
+  const refreshToken = getRefreshToken();
   clearAccessToken();
+  if (refreshToken) {
+    void apiRequest('POST', '/auth/logout', {
+      body: { refreshToken },
+    }).catch(() => {
+      // Revocation is best-effort; local credentials have already been cleared.
+    });
+  }
 }
 
 export function isSignedIn(): boolean {

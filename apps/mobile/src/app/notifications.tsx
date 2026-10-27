@@ -1,20 +1,13 @@
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
-import type { AuthUser, InAppNotification } from '@bloodlink/contracts';
-import { fetchCurrentUser } from '../api/auth';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScreen } from '../components/keyboard-aware-screen';
+import type { InAppNotification } from '@bloodlink/contracts';
 import { ApiClientError } from '../api/client';
 import { listNotifications } from '../features/notifications/api';
 import { appStyles } from './styles';
 
 export default function NotificationsScreen() {
-  const [user, setUser] = useState<AuthUser | null>(null);
   const [items, setItems] = useState<InAppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,11 +16,7 @@ export default function NotificationsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [currentUser, response] = await Promise.all([
-        fetchCurrentUser(),
-        listNotifications(),
-      ]);
-      setUser(currentUser);
+      const response = await listNotifications();
       setItems(response.data);
     } catch (cause) {
       setError(
@@ -45,7 +34,7 @@ export default function NotificationsScreen() {
   }, [load]);
 
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <Text style={appStyles.title}>Request alerts</Text>
       <Text style={appStyles.subtitle}>
         Alerts reflect current open requests and your organization
@@ -83,19 +72,12 @@ export default function NotificationsScreen() {
             {item.unitsRequired} units · required by{' '}
             {new Date(item.requiredBy).toLocaleString()}
           </Text>
-          {user?.organizations.some(
-            (organization) => organization.type === 'BLOOD_CENTRE',
-          ) ? (
-            <Link href="/blood-centre" style={appStyles.linkText}>
-              Open blood bank workspace
-            </Link>
-          ) : user?.role === 'INDIVIDUAL' && user.organizations.length === 0 ? (
-            <Link href="/donor" style={appStyles.linkText}>
-              Review open requests
-            </Link>
-          ) : null}
+          <Text style={appStyles.muted}>
+            Donor and blood bank response actions are available in the web
+            client.
+          </Text>
         </View>
       ))}
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }

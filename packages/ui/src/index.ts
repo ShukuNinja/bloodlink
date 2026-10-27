@@ -1,1 +1,1 @@
-export {};
+export { formatDistanceMeters } from './distance.ts';

@@ -4,7 +4,16 @@
     "slug": "bloodlink",
     "scheme": "bloodlink",
     "platforms": ["ios", "android"],
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": true }
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow BloodLink to use your location to find nearby hospitals."
+        }
+      ]
+    ],
+    "experiments": { "typedRoutes": true },
+    "android": { "softwareKeyboardLayoutMode": "resize" }
   }
 }

@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { formatDistanceMeters } from '@bloodlink/ui';
+import { KeyboardAwareScreen } from '../components/keyboard-aware-screen';
 import type {
   AuthUser,
   OrganizationSummary,
@@ -126,7 +127,7 @@ export default function OrganizationsScreen() {
   }
 
   return (
-    <ScrollView style={appStyles.screen}>
+    <KeyboardAwareScreen>
       <Text style={appStyles.title}>Find hospitals and blood banks</Text>
       <Text style={appStyles.subtitle}>
         Search active organizations, subscribe for request updates, and start
@@ -136,6 +137,7 @@ export default function OrganizationsScreen() {
         <Text style={appStyles.label}>Organization name</Text>
         <TextInput
           style={appStyles.input}
+          accessibilityLabel="Organization name"
           value={query}
           onChangeText={setQuery}
           placeholder="Search by name"
@@ -188,6 +190,11 @@ export default function OrganizationsScreen() {
         return (
           <View style={appStyles.card} key={organization.id}>
             <Text style={{ fontWeight: '700' }}>{organization.name}</Text>
+            {organization.distanceMeters !== undefined ? (
+              <Text style={appStyles.muted}>
+                {formatDistanceMeters(organization.distanceMeters)} away
+              </Text>
+            ) : null}
             <Text style={appStyles.muted}>
               {organization.type === 'HOSPITAL' ? 'Hospital' : 'Blood bank'}
             </Text>
@@ -219,6 +226,6 @@ export default function OrganizationsScreen() {
       <Link style={appStyles.linkText} href="/conversations">
         Open conversations
       </Link>
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }
